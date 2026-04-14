@@ -1,0 +1,5 @@
+module CJolt {
+    header "joltc.h"
+    link "c++"
+    export *
+}

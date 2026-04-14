@@ -1,0 +1,3 @@
+# name url branch commit
+JoltC https://github.com/amerkoleci/joltc main e6409c5a8b74f4b007d1dfd929e2dee2f622d2a2
+JoltPhysics https://github.com/jrouwe/JoltPhysics master 05fcfbf7b5019f59c43a4829225d681536e8e416

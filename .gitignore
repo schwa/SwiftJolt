@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+.xcframework-build/
+.vendor/
+.DS_Store
+*.xcodeproj
+xcuserdata/
+.xcb-cache.json
