@@ -6,20 +6,15 @@ import Testing
 extension JoltTests {
     @Suite
     struct JobThreadPoolTests {
-        final class Recorder: Sendable {
-            let runCount = Mutex(0)
-            let qosClasses = Mutex<[qos_class_t]>([])
-        }
-
-        func makeJobs(_ count: Int, recorder: Recorder) -> [PooledJob] {
+        private func makeJobs(_ count: Int, recorder: Recorder) -> [PooledJob] {
             let arg = Unmanaged.passUnretained(recorder).toOpaque()
             return (0..<count).map { _ in
-                PooledJob(job: { arg in
-                    let recorder = Unmanaged<Recorder>.fromOpaque(arg!).takeUnretainedValue()
-                    recorder.qosClasses.withLock { $0.append(qos_class_self()) }
+                PooledJob(job: { context in
+                    let jobRecorder = Unmanaged<Recorder>.fromOpaque(context!).takeUnretainedValue()
+                    jobRecorder.qosClasses.withLock { $0.append(qos_class_self()) }
                     // Make jobs pile up so shutdown has queued work to finish.
                     usleep(100)
-                    recorder.runCount.withLock { $0 += 1 }
+                    jobRecorder.runCount.withLock { $0 += 1 }
                 }, arg: arg)
             }
         }
@@ -55,4 +50,9 @@ extension JoltTests {
             }
         }
     }
+}
+
+private final class Recorder: Sendable {
+    let runCount = Mutex(0)
+    let qosClasses = Mutex<[qos_class_t]>([])
 }

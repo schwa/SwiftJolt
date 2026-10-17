@@ -351,12 +351,16 @@ public final class PhysicsWorld {
         var jobConfig = JPH_JobSystemConfig(
             context: Unmanaged.passUnretained(jobThreadPool).toOpaque(),
             queueJob: { context, job, arg in
-                guard let context, let job else { return }
+                guard let context, let job else {
+                    return
+                }
                 let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
                 pool.enqueue([PooledJob(job: job, arg: arg)])
             },
             queueJobs: { context, job, args, count in
-                guard let context, let job, let args else { return }
+                guard let context, let job, let args else {
+                    return
+                }
                 let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
                 pool.enqueue((0..<Int(count)).map { PooledJob(job: job, arg: args[$0]) })
             },
