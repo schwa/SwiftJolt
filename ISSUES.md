@@ -716,3 +716,23 @@ joltc's *_Create functions return objects with a reference count of 1 (checked i
 Fix: release the handle with JPH_Shape_Destroy once the body, character or compound holds its own reference. Add a test if a leak can be observed, for example via a shape's reference count, if joltc exposes one.
 
 ---
+
+## 49: Priority inversion in PhysicsWorld.update
+
++++
+status: new
+priority: medium
+kind: bug
+created: 2026-10-17T12:05:45Z
++++
+
+Thread Performance Checker reports: "Thread running at User-interactive quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class."
+
+Location: `PhysicsWorld.update(deltaTime:collisionSteps:)` calls `JPH_PhysicsSystem_Update(system, deltaTime, Int32(collisionSteps), jobSystem)`. The caller (main/render thread, user-interactive QoS) waits on Jolt thread-pool workers created by `JPH_JobSystemThreadPool_Create` (Sources/JoltPhysics/JoltPhysics.swift:348), which run at Default QoS.
+
+Investigate ways to avoid the inversion, e.g.:
+- Raise worker thread QoS (pthread_set_qos_class_self_np in a thread-init hook, if Jolt/joltc exposes one).
+- Custom job system backed by GCD/Dispatch at matching QoS.
+- Run `update` off the main thread at a lower QoS.
+
+---
