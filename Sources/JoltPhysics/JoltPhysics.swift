@@ -1,4 +1,5 @@
 import CJolt
+import Foundation
 import simd
 import Synchronization
 
@@ -281,6 +282,7 @@ public final class PhysicsWorld {
     public let engine: JoltEngine
     let system: OpaquePointer
     private let jobSystem: OpaquePointer
+    private let jobThreadPool = JobThreadPool()
     let bodyInterface: OpaquePointer
 
     // Keep layer objects alive
@@ -344,8 +346,24 @@ public final class PhysicsWorld {
         var g = JPH_Vec3(gravity)
         JPH_PhysicsSystem_SetGravity(system, &g)
 
-        var jobConfig = JobSystemThreadPoolConfig(maxJobs: 1024, maxBarriers: 8, numThreads: -1)
-        self.jobSystem = JPH_JobSystemThreadPool_Create(&jobConfig)
+        // Jolt's own thread pool runs at Default QoS, causing priority inversions when updated from a
+        // higher-QoS thread. Our pool runs its threads at user-interactive QoS instead.
+        var jobConfig = JPH_JobSystemConfig(
+            context: Unmanaged.passUnretained(jobThreadPool).toOpaque(),
+            queueJob: { context, job, arg in
+                guard let context, let job else { return }
+                let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
+                pool.enqueue([PooledJob(job: job, arg: arg)])
+            },
+            queueJobs: { context, job, args, count in
+                guard let context, let job, let args else { return }
+                let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
+                pool.enqueue((0..<Int(count)).map { PooledJob(job: job, arg: args[$0]) })
+            },
+            maxConcurrency: UInt32(jobThreadPool.threadCount + 1),
+            maxBarriers: 8
+        )
+        self.jobSystem = JPH_JobSystemCallback_Create(&jobConfig)
 
         self.bodyInterface = JPH_PhysicsSystem_GetBodyInterface(system)
     }
@@ -358,6 +376,8 @@ public final class PhysicsWorld {
         JPH_PhysicsSystem_Destroy(system)
         releaseContactListener()
         releaseActivationListener()
+        // Queued jobs can still hold job references after an update returns.
+        jobThreadPool.shutdown()
         JPH_JobSystem_Destroy(jobSystem)
     }
 
@@ -764,5 +784,73 @@ public final class PhysicsWorld {
             var g = JPH_Vec3(newValue)
             JPH_PhysicsSystem_SetGravity(system, &g)
         }
+    }
+}
+
+struct PooledJob: @unchecked Sendable {
+    let job: @convention(c) (UnsafeMutableRawPointer?) -> Void
+    let arg: UnsafeMutableRawPointer?
+
+    func run() {
+        job(arg)
+    }
+}
+
+final class JobThreadPool: @unchecked Sendable {
+    let threadCount = max(1, ProcessInfo.processInfo.activeProcessorCount - 1)
+    private let condition = NSCondition()
+    private var pending: [PooledJob] = []
+    private var isShuttingDown = false
+    private var runningThreads = 0
+
+    init() {
+        runningThreads = threadCount
+        for index in 0..<threadCount {
+            let thread = Thread { [self] in work() }
+            thread.name = "JoltPhysics.job.\(index)"
+            thread.qualityOfService = .userInteractive
+            thread.start()
+        }
+    }
+
+    func enqueue(_ jobs: [PooledJob]) {
+        condition.lock()
+        pending.append(contentsOf: jobs)
+        condition.unlock()
+        if jobs.count == 1 {
+            condition.signal()
+        } else {
+            condition.broadcast()
+        }
+    }
+
+    // Runs any remaining jobs, then waits for all threads to exit.
+    func shutdown() {
+        condition.lock()
+        isShuttingDown = true
+        condition.broadcast()
+        while runningThreads > 0 {
+            condition.wait()
+        }
+        condition.unlock()
+    }
+
+    private func work() {
+        condition.lock()
+        while true {
+            if !pending.isEmpty {
+                let job = pending.removeFirst()
+                condition.unlock()
+                job.run()
+                condition.lock()
+            } else if isShuttingDown {
+                break
+            } else {
+                condition.wait()
+            }
+        }
+        runningThreads -= 1
+        condition.broadcast()
+        condition.unlock()
     }
 }

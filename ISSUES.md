@@ -720,10 +720,12 @@ Fix: release the handle with JPH_Shape_Destroy once the body, character or compo
 ## 49: Priority inversion in PhysicsWorld.update
 
 +++
-status: new
+status: closed
 priority: medium
 kind: bug
 created: 2026-10-17T12:05:45Z
+updated: 2026-10-17T12:53:49Z
+closed: 2026-10-17T12:53:49Z
 +++
 
 Thread Performance Checker reports: "Thread running at User-interactive quality-of-service class waiting on a lower QoS thread running at Default quality-of-service class."
@@ -734,5 +736,11 @@ Investigate ways to avoid the inversion, e.g.:
 - Raise worker thread QoS (pthread_set_qos_class_self_np in a thread-init hook, if Jolt/joltc exposes one).
 - Custom job system backed by GCD/Dispatch at matching QoS.
 - Run `update` off the main thread at a lower QoS.
+
+- `2026-10-17T12:48:48Z`: Attempt 1 (failed): replaced JPH_JobSystemThreadPool_Create with JPH_JobSystemCallback_Create dispatching to GCD (global queue, then a per-world private concurrent queue) so jobs inherit caller QoS.
+- `2026-10-17T12:48:48Z`: Test suite hangs: update stuck in joltc JobSystemCallback::CreateJob sleeping for a free job slot (FixedSizeFreeList exhausted) while no thread runs any job. Looks like a job leak; root cause unknown.
+- `2026-10-17T12:48:48Z`: Before draining the queue in deinit, carSettlesOnItsWheels passed then crashed SIGSEGV (likely jobs running after job system destroyed; unconfirmed).
+- `2026-10-17T12:48:48Z`: Rejected: patching vendored Jolt/joltc thread pool to set worker QoS (fork maintenance).
+- `2026-10-17T12:48:48Z`: Next: custom Swift thread pool at user-interactive QoS behind JPH_JobSystemCallback_Create.
 
 ---
