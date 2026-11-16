@@ -1286,18 +1286,21 @@ Unwrapped joltc API:
 ## 71: Kinematic body MoveKinematic is not exposed
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:xs
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:38:57Z
+closed: 2026-11-16T22:38:57Z
 +++
 
 Jolt's MoveKinematic sets a kinematic body's velocity so it reaches a target pose in one step, which gives correct contacts with dynamic bodies. Only direct position set is available in Swift.
 
 Unwrapped joltc API:
 - `JPH_Body_MoveKinematic`
+
+- `2026-11-16T22:38:57Z`: Already implemented: PhysicsWorld.moveKinematic(_:to:rotation:deltaTime:) wraps JPH_BodyInterface_MoveKinematic, tested by moveKinematicReachesTargetAndPushesDynamicBody. The issue was filed from a name-based scan that only saw the unused JPH_Body_MoveKinematic variant.
 
 ---
 
