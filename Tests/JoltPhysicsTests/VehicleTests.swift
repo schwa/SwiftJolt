@@ -214,5 +214,12 @@ extension JoltTests {
             // Without the vehicle the box just sits on the floor.
             #expect(abs(world.position(of: body).z) < 0.1)
         }
+
+        @Test func vehicleIsNotATwoBodyConstraint() throws {
+            let (_, _, car) = try makeCar()
+            #expect(car.body1 == nil && car.body2 == nil)
+            #expect(car.constraintToBody1Transform == nil)
+            #expect(car.constraintToBody2Transform == nil)
+        }
     }
 }

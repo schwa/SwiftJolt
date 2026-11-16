@@ -25,6 +25,81 @@ public class Constraint {
         set { JPH_Constraint_SetUserData(handle, newValue) }
     }
 
+    /// Higher-priority constraints are solved last, so they win when constraints conflict.
+    public var priority: UInt32 {
+        get { JPH_Constraint_GetConstraintPriority(handle) }
+        set { JPH_Constraint_SetConstraintPriority(handle, newValue) }
+    }
+
+    /// Solver velocity iterations for this constraint. 0 uses the world's setting.
+    public var velocityStepsOverride: Int {
+        get { Int(JPH_Constraint_GetNumVelocityStepsOverride(handle)) }
+        set {
+            precondition(newValue >= 0, "Step override must not be negative")
+            JPH_Constraint_SetNumVelocityStepsOverride(handle, UInt32(newValue))
+        }
+    }
+
+    /// Solver position iterations for this constraint. 0 uses the world's setting.
+    public var positionStepsOverride: Int {
+        get { Int(JPH_Constraint_GetNumPositionStepsOverride(handle)) }
+        set {
+            precondition(newValue >= 0, "Step override must not be negative")
+            JPH_Constraint_SetNumPositionStepsOverride(handle, UInt32(newValue))
+        }
+    }
+
+    /// True when the constraint is enabled and at least one of its bodies is awake and dynamic.
+    public var isActive: Bool {
+        JPH_Constraint_IsActive(handle)
+    }
+
+    /// Clears the impulses cached from the last step. Use after teleporting a constrained body.
+    public func resetWarmStart() {
+        JPH_Constraint_ResetWarmStart(handle)
+    }
+
+    private var isTwoBody: Bool {
+        JPH_Constraint_GetType(handle) == JPH_ConstraintType_TwoBodyConstraint
+    }
+
+    private func body(_ pointer: OpaquePointer?) -> BodyID? {
+        guard let pointer, pointer != JPH_Body_GetFixedToWorldBody() else {
+            return nil
+        }
+        return BodyID(rawValue: JPH_Body_GetID(pointer))
+    }
+
+    /// The first body, or nil when the constraint attaches to the world (or is not a two-body constraint).
+    public var body1: BodyID? {
+        isTwoBody ? body(JPH_TwoBodyConstraint_GetBody1(handle)) : nil
+    }
+
+    /// The second body, or nil when this is not a two-body constraint.
+    public var body2: BodyID? {
+        isTwoBody ? body(JPH_TwoBodyConstraint_GetBody2(handle)) : nil
+    }
+
+    /// Constraint space relative to body 1's center of mass, or nil when this is not a two-body constraint.
+    public var constraintToBody1Transform: simd_float4x4? {
+        guard isTwoBody else {
+            return nil
+        }
+        var result = JPH_Mat4()
+        JPH_TwoBodyConstraint_GetConstraintToBody1Matrix(handle, &result)
+        return result.simd
+    }
+
+    /// Constraint space relative to body 2's center of mass, or nil when this is not a two-body constraint.
+    public var constraintToBody2Transform: simd_float4x4? {
+        guard isTwoBody else {
+            return nil
+        }
+        var result = JPH_Mat4()
+        JPH_TwoBodyConstraint_GetConstraintToBody2Matrix(handle, &result)
+        return result.simd
+    }
+
     /// Called just before the constraint is removed from `system`. Vehicles unregister their step listener here.
     func willRemove(from _: OpaquePointer) {}
 }

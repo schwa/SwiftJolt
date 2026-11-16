@@ -1919,12 +1919,13 @@ Unwrapped joltc API:
 ## 90: Constraint base properties (priority, solver steps, enabled, type) are not exposed
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:constraints, effort:s
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:05:51Z
+closed: 2026-11-16T23:05:51Z
 +++
 
 Constraints can't set solver priority or position/velocity step overrides, report whether they are active, or report their type/subtype. TwoBodyConstraint body/frame accessors are also missing.
@@ -1949,6 +1950,8 @@ Unwrapped joltc API:
 - `JPH_TwoBodyConstraint_GetBody2`
 - `JPH_TwoBodyConstraint_GetConstraintToBody1Matrix`
 - `JPH_TwoBodyConstraint_GetConstraintToBody2Matrix`
+
+- `2026-11-16T23:05:51Z`: Added Constraint.priority, velocityStepsOverride, positionStepsOverride, isActive, resetWarmStart(), body1/body2 (nil for world/non-two-body), constraintToBody1Transform/constraintToBody2Transform. Not exposed: GetType/GetSubType (the Swift subclass already tells the type), NotifyShapeChanged and the manual Setup/WarmStart/Solve calls (solver internals).
 
 ---
 

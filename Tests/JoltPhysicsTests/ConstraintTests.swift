@@ -84,6 +84,37 @@ extension JoltTests {
             #expect(world.position(of: second).y < -3)
         }
 
+        @Test func baseProperties() throws {
+            let world = try makeWorld()
+            let anchor = world.addBody(.sphere(radius: 0.1), motionType: .static)
+            let bob = world.addBody(.sphere(radius: 0.1), position: [1, 0, 0])
+            let constraint = world.addPointConstraint(between: anchor, and: bob, point: .zero)
+            #expect(constraint.body1 == anchor)
+            #expect(constraint.body2 == bob)
+            #expect(constraint.isActive)
+            constraint.priority = 7
+            constraint.velocityStepsOverride = 3
+            constraint.positionStepsOverride = 4
+            #expect(constraint.priority == 7)
+            #expect(constraint.velocityStepsOverride == 3)
+            #expect(constraint.positionStepsOverride == 4)
+            constraint.isEnabled = false
+            #expect(!constraint.isActive)
+            constraint.resetWarmStart()
+        }
+
+        @Test func worldAttachedConstraintHasNoBody1() throws {
+            let world = try makeWorld()
+            let bob = world.addBody(.sphere(radius: 0.1), position: [1, 0, 0])
+            let constraint = world.addPointConstraint(between: nil, and: bob, point: .zero)
+            #expect(constraint.body1 == nil)
+            #expect(constraint.body2 == bob)
+            // Constraint point at the world origin is 1 m to the left of the bob's center.
+            let toBody2 = try #require(constraint.constraintToBody2Transform)
+            #expect(simd_distance(SIMD3(toBody2.columns.3.x, toBody2.columns.3.y, toBody2.columns.3.z), [-1, 0, 0]) < 1e-5)
+            #expect(constraint.constraintToBody1Transform != nil)
+        }
+
         @Test func pointConstraintSwingsInAnyDirection() throws {
             let world = try makeWorld()
             let bob = world.addBody(.sphere(radius: 0.1), position: [1, 0, 0])
