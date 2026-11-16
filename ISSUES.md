@@ -482,10 +482,13 @@ closed: 2026-10-14T21:14:31Z
 status: open
 priority: low
 kind: feature
-labels: effort:xl, area:softbodies
+labels: effort:xl, area:softbodies, has-subtasks
+depends: 50, 51, 52
 created: 2026-04-14T23:33:57Z
-updated: 2026-10-14T20:09:36Z
+updated: 2026-11-16T20:11:05Z
 +++
+
+- `2026-11-16T20:11:05Z`: Split into subtasks (in order): #50, #51, #52
 
 ---
 
@@ -495,10 +498,13 @@ updated: 2026-10-14T20:09:36Z
 status: open
 priority: low
 kind: feature
-labels: effort:xl, area:ragdolls
+labels: effort:xl, area:ragdolls, has-subtasks
+depends: 53, 54, 55, 56, 57
 created: 2026-04-14T23:33:57Z
-updated: 2026-10-14T20:09:36Z
+updated: 2026-11-16T20:11:05Z
 +++
+
+- `2026-11-16T20:11:05Z`: Split into subtasks (in order): #53, #54, #55, #56, #57
 
 ---
 
@@ -745,5 +751,131 @@ Investigate ways to avoid the inversion, e.g.:
 - `2026-10-17T12:48:48Z`: Before draining the queue in deinit, carSettlesOnItsWheels passed then crashed SIGSEGV (likely jobs running after job system destroyed; unconfirmed).
 - `2026-10-17T12:48:48Z`: Rejected: patching vendored Jolt/joltc thread pool to set worker QoS (fork maintenance).
 - `2026-10-17T12:48:48Z`: Next: custom Swift thread pool at user-interactive QoS behind JPH_JobSystemCallback_Create.
+
+---
+
+## 50: Wrap soft body shared settings
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:s, subtask, area:softbodies
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_SoftBodySharedSettings: create, add vertices/faces, pinned vertices, CreateConstraints, Optimize. Accept: build a cloth grid from Swift and read vertex count/positions back. Part of #34.
+
+---
+
+## 51: Create and add soft bodies to the world
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:m, subtask, area:softbodies
+depends: 50
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_SoftBodyCreationSettings (position, rotation, iterations, friction, restitution, etc.) and BodyInterface CreateSoftBody/AddSoftBody. Accept: a pinned cloth falls/sags under gravity in a test. Part of #34.
+
+---
+
+## 52: Read simulated soft body vertex positions (needs joltc support)
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:m, subtask, area:softbodies, deferred
+depends: 51
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Users need the deformed vertex positions after simulation to render a soft body. joltc exposes only rest positions via SoftBodySharedSettings_GetVertexPosition; no SoftBodyMotionProperties vertex access. Part of #34.
+
+---
+
+## 53: Wrap Skeleton
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:s, subtask, area:ragdolls
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_Skeleton: create, add joints with parent (AddJoint2/3), joint count/lookup. Accept: build a skeleton in a test and query its joints. Part of #35.
+
+---
+
+## 54: Wrap SkeletonPose
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:m, subtask, area:ragdolls
+depends: 53
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_SkeletonPose: set skeleton, root offset, joint states/matrices, CalculateJointMatrices/States. Accept: round-trip joint states to matrices in a test. Part of #35.
+
+---
+
+## 55: Wrap RagdollSettings
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:m, subtask, area:ragdolls
+depends: 53
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_RagdollSettings: create from skeleton, per-part shape/position/rotation/motion type/layer/mass, part-to-parent constraints, Stabilize, CreateConstraints. Accept: build settings for a 2–3 part ragdoll in a test. Part of #35.
+
+---
+
+## 56: Wrap Ragdoll instances
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:m, subtask, area:ragdolls
+depends: 54, 55
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_Ragdoll: create from settings, AddToPhysicsSystem/remove, get/set pose, DriveToPoseUsingMotors/Kinematics. Accept: a ragdoll falls and collapses under gravity in a test. Part of #35.
+
+---
+
+## 57: Wrap SkeletonMapper
+
++++
+status: open
+priority: low
+kind: feature
+labels: effort:s, subtask, area:ragdolls
+depends: 54
+created: 2026-11-16T20:11:05Z
+updated: 2026-11-16T20:11:09Z
++++
+
+Wrap JPH_SkeletonMapper: initialize between two skeletons, lock translations, Map/MapReverse, mapped joint index. Accept: map a pose between a high- and low-detail skeleton in a test. Part of #35.
 
 ---
