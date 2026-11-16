@@ -32,7 +32,8 @@ extension PhysicsWorld {
         position: SIMD3<Float> = .zero,
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
         motionType: MotionType = .dynamic,
-        material: Material
+        material: Material,
+        options: BodyOptions = .default
     ) -> BodyID {
         let body = addBody(
             shape,
@@ -40,9 +41,11 @@ extension PhysicsWorld {
             rotation: rotation,
             motionType: motionType,
             restitution: material.restitution,
-            friction: material.friction
+            friction: material.friction,
+            options: options
         )
-        if motionType == .dynamic, material.density != Material.defaultDensity {
+        // An explicit mass wins over density.
+        if motionType == .dynamic, options.mass == nil, material.density != Material.defaultDensity {
             // Shapes are built at the default density, so scale the computed mass.
             setMass(of: body, to: mass(of: body) * material.density / Material.defaultDensity)
         }

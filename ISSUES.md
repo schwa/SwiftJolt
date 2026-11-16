@@ -1060,12 +1060,13 @@ Unwrapped joltc API:
 ## 66: Body creation options beyond restitution/friction are not exposed
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: area:bodies, effort:m
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:36:45Z
+closed: 2026-11-16T22:36:45Z
 +++
 
 addBody only accepts shape, position, rotation, motionType, restitution and friction. Every other BodyCreationSettings field uses Jolt's default and cannot be set at creation time.
@@ -1121,6 +1122,8 @@ Unwrapped joltc API:
 - `JPH_BodyCreationSettings_SetRestitution`
 - `JPH_BodyCreationSettings_SetRotation`
 - `JPH_BodyCreationSettings_SetUseManifoldReduction`
+
+- `2026-11-16T22:36:45Z`: Added BodyOptions (velocities, damping, max velocities, gravity factor, motion quality, sleeping, gyroscopic force, inertia multiplier, mass override, kinematic/dynamic flags, manifold reduction, edge removal, solver step overrides) as an addBody parameter. Step overrides are untested: joltc has no getter for them. Sensor, DOFs, user data, layers and collision groups stay in #65, #67, #68, #75.
 
 ---
 

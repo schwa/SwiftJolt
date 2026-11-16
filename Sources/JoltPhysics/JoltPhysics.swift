@@ -419,7 +419,8 @@ public final class PhysicsWorld {
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
         motionType: MotionType = .dynamic,
         restitution: Float = 0.3,
-        friction: Float = 0.2
+        friction: Float = 0.2,
+        options: BodyOptions = .default
     ) -> BodyID {
         let shapeHandle = shape.createHandle()
         // createHandle returns an owned reference; the body takes its own.
@@ -436,6 +437,7 @@ public final class PhysicsWorld {
             motionType.jph,
             layer.rawValue
         )!
+        options.apply(to: creationSettings)
 
         let bodyID = JPH_BodyInterface_CreateAndAddBody(
             bodyInterface,
