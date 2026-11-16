@@ -53,6 +53,10 @@ public struct DebugDrawSettings: Sendable {
     public var velocities = false
     /// Also draw constraints.
     public var constraints = false
+    public var constraintLimits = false
+    public var constraintReferenceFrames = false
+    /// Used by Jolt to pick level of detail.
+    public var cameraPosition: SIMD3<Float>?
 
     public init() {}
 }
@@ -86,14 +90,50 @@ private let installDebugRendererProcs: Void = {
     JPH_DebugRenderer_SetProcs(procs)
 }()
 
+private final class BodyDrawFilterBox {
+    let shouldDraw: (BodyID) -> Bool
+
+    init(_ shouldDraw: @escaping (BodyID) -> Bool) {
+        self.shouldDraw = shouldDraw
+    }
+}
+
+private let installBodyDrawFilterProcs: Void = {
+    let procs = UnsafeMutablePointer<JPH_BodyDrawFilter_Procs>.allocate(capacity: 1)
+    procs.initialize(to: JPH_BodyDrawFilter_Procs { userData, body in
+        Unmanaged<BodyDrawFilterBox>.fromOpaque(userData!).takeUnretainedValue().shouldDraw(BodyID(body!))
+    })
+    JPH_BodyDrawFilter_SetProcs(procs)
+}()
+
+/// Runs `action` with a Jolt debug renderer that forwards to `renderer`.
+func withJoltDebugRenderer<Result>(
+    _ renderer: any DebugRenderer,
+    cameraPosition: SIMD3<Float>?,
+    _ action: (OpaquePointer) throws -> Result
+) rethrows -> Result {
+    _ = installDebugRendererProcs
+    let box = DebugRendererBox(renderer)
+    return try withExtendedLifetime(box) {
+        let handle = JPH_DebugRenderer_Create(Unmanaged.passUnretained(box).toOpaque())!
+        defer { JPH_DebugRenderer_Destroy(handle) }
+        if let cameraPosition {
+            var position = JPH_RVec3(cameraPosition)
+            JPH_DebugRenderer_SetCameraPos(handle, &position)
+        }
+        return try action(handle)
+    }
+}
+
 extension PhysicsWorld {
     /// Sends debug geometry for all bodies (and optionally constraints) to `renderer`.
-    public func debugDraw(to renderer: any DebugRenderer, settings: DebugDrawSettings = DebugDrawSettings()) {
-        _ = installDebugRendererProcs
-        let box = DebugRendererBox(renderer)
-        withExtendedLifetime(box) {
-            let handle = JPH_DebugRenderer_Create(Unmanaged.passUnretained(box).toOpaque())!
-            defer { JPH_DebugRenderer_Destroy(handle) }
+    /// `shouldDrawBody`, if given, picks which bodies to draw. It runs on the calling thread.
+    public func debugDraw(
+        to renderer: any DebugRenderer,
+        settings: DebugDrawSettings = DebugDrawSettings(),
+        shouldDrawBody: ((BodyID) -> Bool)? = nil
+    ) {
+        withJoltDebugRenderer(renderer, cameraPosition: settings.cameraPosition) { handle in
             var drawSettings = JPH_DrawSettings()
             JPH_DrawSettings_InitDefault(&drawSettings)
             drawSettings.drawShape = settings.shapes
@@ -102,9 +142,39 @@ extension PhysicsWorld {
             drawSettings.drawCenterOfMassTransform = settings.centerOfMass
             drawSettings.drawWorldTransform = settings.worldTransforms
             drawSettings.drawVelocity = settings.velocities
-            JPH_PhysicsSystem_DrawBodies(system, &drawSettings, handle, nil)
+            if let shouldDrawBody {
+                _ = installBodyDrawFilterProcs
+                let filterBox = BodyDrawFilterBox(shouldDrawBody)
+                withExtendedLifetime(filterBox) {
+                    let filter = JPH_BodyDrawFilter_Create(Unmanaged.passUnretained(filterBox).toOpaque())
+                    defer { JPH_BodyDrawFilter_Destroy(filter) }
+                    JPH_PhysicsSystem_DrawBodies(system, &drawSettings, handle, filter)
+                }
+            } else {
+                JPH_PhysicsSystem_DrawBodies(system, &drawSettings, handle, nil)
+            }
             if settings.constraints {
                 JPH_PhysicsSystem_DrawConstraints(system, handle)
+            }
+            if settings.constraintLimits {
+                JPH_PhysicsSystem_DrawConstraintLimits(system, handle)
+            }
+            if settings.constraintReferenceFrames {
+                JPH_PhysicsSystem_DrawConstraintReferenceFrame(system, handle)
+            }
+        }
+    }
+
+    /// Runs `action` with a `DebugDrawer` whose helpers (arrows, boxes, spheres, ...) are
+    /// tessellated by Jolt and sent to `renderer` as lines and triangles.
+    public func withDebugDrawer<Result>(
+        _ renderer: any DebugRenderer,
+        cameraPosition: SIMD3<Float>? = nil,
+        _ action: (borrowing DebugDrawer) throws -> Result
+    ) rethrows -> Result {
+        try withExtendedLifetime(engine) {
+            try withJoltDebugRenderer(renderer, cameraPosition: cameraPosition) { handle in
+                try action(DebugDrawer(handle: handle))
             }
         }
     }

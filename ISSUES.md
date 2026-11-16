@@ -2325,12 +2325,13 @@ Unwrapped joltc API:
 ## 97: Debug renderer immediate draw calls are not exposed
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:debug, effort:m
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:57:55Z
+closed: 2026-11-16T23:57:55Z
 +++
 
 Swift only receives draw callbacks from Jolt. Apps can't use Jolt's draw helpers (lines, boxes, spheres, arrows, coordinate systems, cones) to draw their own debug overlays, and can't advance the frame or set the camera position. Body draw filtering and constraint limit/frame drawing are also missing.
@@ -2368,6 +2369,7 @@ Unwrapped joltc API:
 
 - `2026-11-16T22:12:04Z`: Related: #64 (precondition/assert paths are untested).
 - `2026-11-16T22:33:42Z`: Correction: the 'Related: #64' note above was meant for #98 (trace/assert handlers).
+- `2026-11-16T23:57:55Z`: Added PhysicsWorld.withDebugDrawer(_:cameraPosition:_:) with a DebugDrawer exposing all listed draw helpers; debugDraw(to:settings:shouldDrawBody:) with a body filter; DebugDrawSettings.constraintLimits / constraintReferenceFrames / cameraPosition. Not wrapped: JPH_DebugRenderer_NextFrame. SwiftJolt creates a Jolt renderer per draw call and forwards immediately, so there is no cached frame state to advance. Cast-shadow flags are always off (the Swift DebugRenderer protocol has no shadow parameter).
 
 ---
 
