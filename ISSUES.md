@@ -872,13 +872,14 @@ Wrap JPH_Ragdoll: create from settings, AddToPhysicsSystem/remove, get/set pose,
 ## 57: Wrap SkeletonMapper
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:s, subtask, area:ragdolls
 depends: 54
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:23:21Z
+closed: 2026-11-16T20:23:21Z
 +++
 
 Wrap JPH_SkeletonMapper: initialize between two skeletons, lock translations, Map/MapReverse, mapped joint index. Accept: map a pose between a high- and low-detail skeleton in a test. Part of #35.
