@@ -2271,12 +2271,13 @@ Unwrapped joltc API:
 ## 95: Skeletal animation is not wrapped
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:ragdolls, effort:m
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:56:04Z
+closed: 2026-11-16T23:56:04Z
 +++
 
 Jolt's SkeletalAnimation (keyframed joint animation sampled into a SkeletonPose) has no Swift API. Ragdolls can't be driven by animation without it.
@@ -2292,6 +2293,8 @@ Unwrapped joltc API:
 - `JPH_SkeletalAnimation_Sample`
 - `JPH_SkeletalAnimation_ScaleJoints`
 - `JPH_SkeletalAnimation_SetIsLooping`
+
+- `2026-11-16T23:56:04Z`: Added SkeletalAnimation (addJoint, addKeyframe, duration, isLooping, scaleJoints, sample(at:into:)). Jolt quirks found while testing: looping is on by default, and duration comes only from the first track's last keyframe; both are documented on the Swift API. sample() checks that every animated joint exists in the pose's skeleton, since Jolt would index out of bounds otherwise.
 
 ---
 
