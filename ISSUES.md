@@ -1341,12 +1341,13 @@ Unwrapped joltc API:
 ## 73: Body activation can't be controlled in bulk or by region
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:38:01Z
+closed: 2026-11-16T23:38:01Z
 +++
 
 There is no way to activate/deactivate several bodies at once, activate all bodies in an AABB, or deactivate one body explicitly.
@@ -1360,6 +1361,7 @@ Unwrapped joltc API:
 
 - `2026-11-16T22:41:45Z`: isActive(_:) was added with #70.
 - `2026-11-16T23:10:19Z`: activateBodies(inBoxFrom:to:layer:) was added with #83.
+- `2026-11-16T23:38:01Z`: Added activate/deactivate for single bodies and arrays. Region activation is covered by activateBodies(inBoxFrom:to:layer:) (#83); JPH_BodyInterface_ActivateBodiesInAABox (filter-based variant) is not wrapped separately.
 
 ---
 

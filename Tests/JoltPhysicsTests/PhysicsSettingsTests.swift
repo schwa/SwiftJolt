@@ -33,6 +33,22 @@ extension JoltTests {
             #expect(world.isActive(body))
         }
 
+        @Test func activatesAndDeactivatesBodies() throws {
+            let world = try makeWorld(gravity: .zero)
+            let a = world.addBody(.sphere(radius: 0.5), position: [0, 0, 0])
+            let b = world.addBody(.sphere(radius: 0.5), position: [5, 0, 0])
+            let c = world.addBody(.sphere(radius: 0.5), position: [10, 0, 0])
+            world.deactivate(a)
+            #expect(!world.isActive(a))
+            #expect(world.isActive(b))
+            world.deactivate([b, c])
+            #expect(!world.isActive(b) && !world.isActive(c))
+            world.activate(a)
+            #expect(world.isActive(a))
+            world.activate([b, c])
+            #expect(world.isActive(b) && world.isActive(c))
+        }
+
         @Test func enumeratesBodiesAndConstraints() throws {
             let world = try makeWorld()
             #expect(world.maxBodies == 10240)

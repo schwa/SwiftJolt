@@ -526,6 +526,25 @@ public final class PhysicsWorld {
         JPH_BodyInterface_IsActive(bodyInterface, body.rawValue)
     }
 
+    public func activate(_ body: BodyID) {
+        JPH_BodyInterface_ActivateBody(bodyInterface, body.rawValue)
+    }
+
+    public func activate(_ bodies: [BodyID]) {
+        let ids = bodies.map(\.rawValue)
+        JPH_BodyInterface_ActivateBodies(bodyInterface, ids, UInt32(ids.count))
+    }
+
+    /// Puts the body to sleep.
+    public func deactivate(_ body: BodyID) {
+        JPH_BodyInterface_DeactivateBody(bodyInterface, body.rawValue)
+    }
+
+    public func deactivate(_ bodies: [BodyID]) {
+        let ids = bodies.map(\.rawValue)
+        JPH_BodyInterface_DeactivateBodies(bodyInterface, ids, UInt32(ids.count))
+    }
+
     public func position(of body: BodyID) -> SIMD3<Float> {
         var result = JPH_RVec3()
         JPH_BodyInterface_GetPosition(bodyInterface, body.rawValue, &result)
