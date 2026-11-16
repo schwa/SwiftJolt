@@ -63,6 +63,15 @@ public final class SoftBodySharedSettings {
         JPH_SoftBodySharedSettings_AddFace(handle, UInt32(vertex1), UInt32(vertex2), UInt32(vertex3))
     }
 
+    /// Adds one face per three entries of `indices`.
+    public func addFaces(_ indices: [UInt32]) {
+        willMutate()
+        precondition(indices.count.isMultiple(of: 3), "Face indices must come in groups of three")
+        let count = vertexCount
+        precondition(indices.allSatisfy { Int($0) < count }, "Face vertex index out of range")
+        JPH_SoftBodySharedSettings_AddFaces(handle, indices, UInt32(indices.count / 3))
+    }
+
     /// Pin vertices before calling `createConstraints`.
     public func pinVertex(_ index: Int) {
         willMutate()
@@ -108,6 +117,8 @@ public struct SoftBodyOptions: Sendable, Equatable {
     public var allowSleeping = true
     public var facesDoubleSided = false
     public var userData: UInt64 = 0
+    public var objectLayer: ObjectLayer = .moving
+    public var collisionGroup: CollisionGroup = .ungrouped
 
     public init() {}
 }
@@ -128,8 +139,12 @@ extension PhysicsWorld {
         settings.isInUse = true
         var jphPosition = JPH_RVec3(position)
         var jphRotation = JPH_Quat(rotation)
-        let creation = JPH_SoftBodyCreationSettings_Create2(settings.handle, &jphPosition, &jphRotation, ObjectLayer.moving.rawValue)!
+        collisionLayers.checkLayer(options.objectLayer)
+        let creation = JPH_SoftBodyCreationSettings_Create2(settings.handle, &jphPosition, &jphRotation, options.objectLayer.rawValue)!
         defer { JPH_SoftBodyCreationSettings_Destroy(creation) }
+        registerGroupFilter(options.collisionGroup.filter)
+        var group = options.collisionGroup.jph
+        JPH_SoftBodyCreationSettings_SetCollisionGroup(creation, &group)
 
         JPH_SoftBodyCreationSettings_SetNumIterations(creation, UInt32(options.iterations))
         JPH_SoftBodyCreationSettings_SetLinearDamping(creation, options.linearDamping)

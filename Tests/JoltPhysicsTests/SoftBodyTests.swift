@@ -107,6 +107,30 @@ extension JoltTests {
             #expect(abs(world.position(of: body).y - 10) < 0.5)
         }
 
+        @Test func layerAndCollisionGroupApply() throws {
+            let world = try makeWorld()
+            let cloth = try makeCloth(engine: world.engine)
+            cloth.createConstraints()
+            let filter = CollisionGroupFilter(subGroupCount: 2)
+            var options = SoftBodyOptions()
+            options.objectLayer = .nonMoving
+            options.collisionGroup = CollisionGroup(filter: filter, groupID: 3, subGroupID: 1)
+            let body = world.addSoftBody(cloth, options: options)
+            #expect(world.objectLayer(of: body) == .nonMoving)
+            #expect(world.collisionGroup(of: body) == options.collisionGroup)
+        }
+
+        @Test func addFacesInBulk() throws {
+            let world = try makeWorld()
+            let settings = SoftBodySharedSettings(engine: world.engine)
+            settings.addVertices([[0, 0, 0], [1, 0, 0], [0, 0, 1], [1, 0, 1]])
+            settings.addFaces([0, 2, 1, 1, 2, 3])
+            settings.createConstraints()
+            let body = world.addSoftBody(settings, position: [0, 10, 0])
+            simulate(world, seconds: 1)
+            #expect(world.position(of: body).y < 7)
+        }
+
         @Test func addVerticesInBulk() throws {
             let settings = SoftBodySharedSettings(engine: try JoltEngine())
             settings.addVertices([[0, 0, 0], [1, 0, 0], [0, 0, 1]])

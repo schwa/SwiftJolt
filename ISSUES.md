@@ -2402,12 +2402,13 @@ Unwrapped joltc API:
 ## 100: Soft body creation settings and body accessors are incomplete
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:softbodies, effort:s
 created: 2026-11-16T21:37:14Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:48:37Z
+closed: 2026-11-16T23:48:37Z
 +++
 
 Some SoftBodyCreationSettings and soft-body-related Body functions are not wrapped. (Vertex readback is tracked in #52.)
@@ -2440,6 +2441,7 @@ Unwrapped joltc API:
 - `JPH_SoftBodySharedSettings_AddFaces`
 
 - `2026-11-16T22:12:04Z`: Related: #52 (soft body vertex readback).
+- `2026-11-16T23:48:37Z`: Added SoftBodyOptions.objectLayer and .collisionGroup, and SoftBodySharedSettings.addFaces. Not wrapped by design: the SoftBodyCreationSettings getters, Create (no-arg), SetPosition/SetRotation/SetSettings. SoftBodyOptions is a Swift value type built per addSoftBody call, so the getters have nothing to read and position/rotation/settings are already addSoftBody arguments. isSoftBody already exists on PhysicsWorld and LockedBody.
 
 ---
 
