@@ -501,37 +501,81 @@ public final class PhysicsWorld {
         friction: Float = 0.2,
         options: BodyOptions = .default
     ) -> BodyID {
+        let bodyID = withCreationSettings(shape, position, rotation, motionType, options) { settings in
+            JPH_BodyInterface_CreateAndAddBody(bodyInterface, settings, JPH_Activation_Activate)
+        }
+        JPH_BodyInterface_SetRestitution(bodyInterface, bodyID, restitution)
+        JPH_BodyInterface_SetFriction(bodyInterface, bodyID, friction)
+        return BodyID(rawValue: bodyID)
+    }
+
+    /// Creates a body without adding it to the simulation, e.g. to pool bodies or add them in a
+    /// batch later with `addToWorld`. Pass `id` to choose the body ID (for example to match a
+    /// server). Returns nil when the world is full or `id` is already taken.
+    public func createBody(
+        _ shape: Shape,
+        id: BodyID? = nil,
+        position: SIMD3<Float> = .zero,
+        rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
+        motionType: MotionType = .dynamic,
+        restitution: Float = 0.3,
+        friction: Float = 0.2,
+        options: BodyOptions = .default
+    ) -> BodyID? {
+        let body = withCreationSettings(shape, position, rotation, motionType, options) { settings in
+            if let id {
+                return JPH_BodyInterface_CreateBodyWithID(bodyInterface, id.rawValue, settings)
+            }
+            return JPH_BodyInterface_CreateBody(bodyInterface, settings)
+        }
+        guard let body else {
+            return nil
+        }
+        let bodyID = JPH_Body_GetID(body)
+        JPH_BodyInterface_SetRestitution(bodyInterface, bodyID, restitution)
+        JPH_BodyInterface_SetFriction(bodyInterface, bodyID, friction)
+        return BodyID(rawValue: bodyID)
+    }
+
+    private func withCreationSettings<Result>(
+        _ shape: Shape,
+        _ position: SIMD3<Float>,
+        _ rotation: simd_quatf,
+        _ motionType: MotionType,
+        _ options: BodyOptions,
+        _ action: (OpaquePointer) -> Result
+    ) -> Result {
         let shapeHandle = shape.createHandle()
         // createHandle returns an owned reference; the body takes its own.
         defer { JPH_Shape_Destroy(shapeHandle) }
         let layer = options.objectLayer ?? ((motionType == .static) ? .nonMoving : .moving)
         collisionLayers.checkLayer(layer)
         registerGroupFilter(options.collisionGroup.filter)
-
         var pos = JPH_RVec3(position)
         var rot = JPH_Quat(rotation)
-
-        let creationSettings = JPH_BodyCreationSettings_Create3(
-            shapeHandle,
-            &pos,
-            &rot,
-            motionType.jph,
-            layer.rawValue
-        )!
+        let creationSettings = JPH_BodyCreationSettings_Create3(shapeHandle, &pos, &rot, motionType.jph, layer.rawValue)!
+        defer { JPH_BodyCreationSettings_Destroy(creationSettings) }
         options.apply(to: creationSettings)
+        return action(creationSettings)
+    }
 
-        let bodyID = JPH_BodyInterface_CreateAndAddBody(
-            bodyInterface,
-            creationSettings,
-            JPH_Activation_Activate
-        )
+    /// Adds a body made with `createBody`, or one taken out with `removeFromWorld`, to the simulation.
+    public func addToWorld(_ body: BodyID, activate: Bool = true) {
+        precondition(!isAdded(body), "Body is already in the world")
+        JPH_BodyInterface_AddBody(bodyInterface, body.rawValue, activate ? JPH_Activation_Activate : JPH_Activation_DontActivate)
+    }
 
-        JPH_BodyCreationSettings_Destroy(creationSettings)
+    /// Takes a body out of the simulation but keeps it, so it can be added again with `addToWorld`.
+    public func removeFromWorld(_ body: BodyID) {
+        precondition(isAdded(body), "Body is not in the world")
+        JPH_BodyInterface_RemoveBody(bodyInterface, body.rawValue)
+    }
 
-        JPH_BodyInterface_SetRestitution(bodyInterface, bodyID, restitution)
-        JPH_BodyInterface_SetFriction(bodyInterface, bodyID, friction)
-
-        return BodyID(rawValue: bodyID)
+    /// Destroys a body that is not in the simulation (see `removeFromWorld`). Its ID becomes free.
+    public func destroyBody(_ body: BodyID) {
+        precondition(!isAdded(body), "Remove the body from the world before destroying it")
+        JPH_BodyInterface_DestroyBody(bodyInterface, body.rawValue)
+        softBodySettings[body] = nil
     }
 
     /// Remove and destroy a body.

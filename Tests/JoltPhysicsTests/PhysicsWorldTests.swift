@@ -56,6 +56,52 @@ extension JoltTests {
             #expect(world.bodyCount == 1)
         }
 
+        @Test func bodiesCanBeCreatedAddedRemovedAndDestroyedSeparately() throws {
+            let world = try makeWorld()
+            let body = try #require(world.createBody(.sphere(radius: 0.5), position: [0, 5, 0], friction: 0.7))
+            #expect(!world.isAdded(body))
+            #expect(world.friction(of: body) == 0.7)
+            simulate(world, seconds: 0.5)
+            #expect(world.position(of: body).y == 5)
+
+            world.addToWorld(body)
+            #expect(world.isAdded(body))
+            simulate(world, seconds: 0.5)
+            let fallen = world.position(of: body).y
+            #expect(fallen < 5)
+
+            world.removeFromWorld(body)
+            #expect(!world.isAdded(body))
+            simulate(world, seconds: 0.5)
+            #expect(world.position(of: body).y == fallen)
+
+            world.destroyBody(body)
+            #expect(world.bodyCount == 0)
+        }
+
+        @Test func createBodyWithChosenID() throws {
+            let world = try makeWorld()
+            let id = BodyID(rawValue: 42)
+            let body = try #require(world.createBody(.sphere(radius: 0.5), id: id))
+            #expect(body == id)
+            #expect(world.createBody(.sphere(radius: 0.5), id: id) == nil)
+            world.addToWorld(body, activate: false)
+            #expect(world.isAdded(body))
+            #expect(!world.isActive(body))
+        }
+
+        @Test func softBodyCanBeCreatedWithoutAdding() throws {
+            let world = try makeWorld()
+            let cloth = try makeCloth(engine: world.engine)
+            cloth.createConstraints()
+            let body = try #require(world.createSoftBody(cloth, position: [0, 5, 0]))
+            #expect(!world.isAdded(body))
+            #expect(world.isSoftBody(body))
+            world.addToWorld(body)
+            simulate(world, seconds: 0.5)
+            #expect(world.position(of: body).y < 5)
+        }
+
         @Test func bodyStartsAtGivenPosition() throws {
             let world = try makeWorld()
             let body = world.addBody(.sphere(radius: 1), position: [1, 2, 3])

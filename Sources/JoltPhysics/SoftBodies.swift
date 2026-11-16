@@ -132,6 +132,43 @@ extension PhysicsWorld {
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
         options: SoftBodyOptions = .init()
     ) -> BodyID {
+        let body = withSoftBodyCreationSettings(settings, position, rotation, options) { creation in
+            BodyID(rawValue: JPH_BodyInterface_CreateAndAddSoftBody(bodyInterface, creation, JPH_Activation_Activate))
+        }
+        softBodySettings[body] = settings
+        return body
+    }
+
+    /// Creates a soft body without adding it to the simulation; see `createBody`. Returns nil when
+    /// the world is full or `id` is already taken.
+    public func createSoftBody(
+        _ settings: SoftBodySharedSettings,
+        id: BodyID? = nil,
+        position: SIMD3<Float> = .zero,
+        rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
+        options: SoftBodyOptions = .init()
+    ) -> BodyID? {
+        let created = withSoftBodyCreationSettings(settings, position, rotation, options) { creation in
+            if let id {
+                return JPH_BodyInterface_CreateSoftBodyWithID(bodyInterface, id.rawValue, creation)
+            }
+            return JPH_BodyInterface_CreateSoftBody(bodyInterface, creation)
+        }
+        guard let created else {
+            return nil
+        }
+        let body = BodyID(rawValue: JPH_Body_GetID(created))
+        softBodySettings[body] = settings
+        return body
+    }
+
+    private func withSoftBodyCreationSettings<Result>(
+        _ settings: SoftBodySharedSettings,
+        _ position: SIMD3<Float>,
+        _ rotation: simd_quatf,
+        _ options: SoftBodyOptions,
+        _ action: (OpaquePointer) -> Result
+    ) -> Result {
         precondition(settings.engine === engine, "Soft body settings belong to a different engine")
         if !settings.isOptimized {
             settings.optimize()
@@ -159,9 +196,6 @@ extension PhysicsWorld {
         JPH_SoftBodyCreationSettings_SetAllowSleeping(creation, options.allowSleeping)
         JPH_SoftBodyCreationSettings_SetFacesDoubleSided(creation, options.facesDoubleSided)
         JPH_SoftBodyCreationSettings_SetUserData(creation, options.userData)
-
-        let body = BodyID(rawValue: JPH_BodyInterface_CreateAndAddSoftBody(bodyInterface, creation, JPH_Activation_Activate))
-        softBodySettings[body] = settings
-        return body
+        return action(creation)
     }
 }

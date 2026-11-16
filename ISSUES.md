@@ -1368,12 +1368,13 @@ Unwrapped joltc API:
 ## 74: Body lifecycle is limited to create-and-add / remove-and-destroy
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:bodies, effort:m
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:50:07Z
+closed: 2026-11-16T23:50:07Z
 +++
 
 Bodies can't be created without adding them, added/removed from the world without destroying them, or created with a chosen BodyID. This blocks pooling and batch insertion.
@@ -1392,6 +1393,8 @@ Unwrapped joltc API:
 - `JPH_BodyInterface_DestroyBodyWithoutID`
 - `JPH_BodyInterface_RemoveBody`
 - `JPH_BodyInterface_UnassignBodyID`
+
+- `2026-11-16T23:50:07Z`: Added createBody(id:...), createSoftBody(id:...), addToWorld(_:activate:), removeFromWorld(_:), destroyBody(_:). Not wrapped: CreateBodyWithoutID / CreateSoftBodyWithoutID / AssignBodyID / AssignBodyID2 / UnassignBodyID / DestroyBodyWithoutID. They hand out raw Body pointers with no ID (Jolt's path for creating bodies on worker threads), which does not fit the BodyID-based Swift API. File a separate issue if that use case comes up.
 
 ---
 
