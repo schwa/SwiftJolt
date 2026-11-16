@@ -1698,12 +1698,13 @@ Unwrapped joltc API:
 ## 82: No physics step listener
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:api, effort:s
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:05:01Z
+closed: 2026-11-16T23:05:01Z
 +++
 
 There is no callback that runs on every physics sub-step. Jolt uses it for custom forces and controllers that must run at the simulation rate.
@@ -1712,6 +1713,8 @@ Unwrapped joltc API:
 - `JPH_PhysicsStepListener_Create`
 - `JPH_PhysicsStepListener_Destroy`
 - `JPH_PhysicsStepListener_SetProcs`
+
+- `2026-11-16T23:05:01Z`: Added StepListener protocol with StepContext, PhysicsWorld.addStepListener/removeStepListener. Jolt holds all body locks during step listeners, so on the listener's thread PhysicsWorld now switches to the no-lock body interface, body lock interface and narrow-phase query (thread-local flag); otherwise world calls from a listener deadlock.
 
 ---
 
@@ -2419,7 +2422,7 @@ Unwrapped joltc API:
 status: new
 priority: high
 kind: bug
-labels: area:testing,effort:m
+labels: area:testing, effort:m
 created: 2026-11-16T23:04:53Z
 +++
 

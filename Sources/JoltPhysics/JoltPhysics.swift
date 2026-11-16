@@ -298,7 +298,22 @@ public final class PhysicsWorld {
     let system: OpaquePointer
     private let jobSystem: OpaquePointer
     private let jobThreadPool = JobThreadPool()
-    let bodyInterface: OpaquePointer
+    private let lockingBodyInterface: OpaquePointer
+    private let noLockBodyInterface: OpaquePointer
+
+    // Jolt holds every body lock while step listeners run, so calls made from a step listener
+    // must use the non-locking interfaces or they deadlock.
+    var bodyInterface: OpaquePointer {
+        isInStepListener ? noLockBodyInterface : lockingBodyInterface
+    }
+
+    var bodyLockInterface: OpaquePointer {
+        isInStepListener ? JPH_PhysicsSystem_GetBodyLockInterfaceNoLock(system) : JPH_PhysicsSystem_GetBodyLockInterface(system)
+    }
+
+    var narrowPhaseQuery: OpaquePointer {
+        isInStepListener ? JPH_PhysicsSystem_GetNarrowPhaseQueryNoLock(system) : JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+    }
     public let collisionLayers: CollisionLayers
     var groupFilters: [OpaquePointer: CollisionGroupFilter] = [:]
 
@@ -314,6 +329,7 @@ public final class PhysicsWorld {
     var softBodySettings: [BodyID: SoftBodySharedSettings] = [:]
     var activationListenerHandle: OpaquePointer?
     var activationListenerBox: Unmanaged<ActivationListenerBox>?
+    var stepListeners: [ObjectIdentifier: StepListenerRegistration] = [:]
 
     /// Told when bodies wake up or go to sleep. See `ActivationListener` for threading rules.
     public var activationListener: (any ActivationListener)? {
@@ -381,7 +397,8 @@ public final class PhysicsWorld {
         )
         self.jobSystem = JPH_JobSystemCallback_Create(&jobConfig)
 
-        self.bodyInterface = JPH_PhysicsSystem_GetBodyInterface(system)
+        self.lockingBodyInterface = JPH_PhysicsSystem_GetBodyInterface(system)
+        self.noLockBodyInterface = JPH_PhysicsSystem_GetBodyInterfaceNoLock(system)
     }
 
     deinit {
@@ -389,6 +406,7 @@ public final class PhysicsWorld {
             constraint.willRemove(from: system)
             JPH_PhysicsSystem_RemoveConstraint(system, constraint.handle)
         }
+        removeAllStepListeners()
         JPH_PhysicsSystem_Destroy(system)
         releaseContactListener()
         releaseActivationListener()
@@ -627,7 +645,7 @@ public final class PhysicsWorld {
         of body: BodyID,
         _ action: (OpaquePointer) -> Result
     ) -> Result {
-        let lockInterface = JPH_PhysicsSystem_GetBodyLockInterface(system)
+        let lockInterface = bodyLockInterface
         var lock = JPH_BodyLockWrite()
         JPH_BodyLockInterface_LockWrite(lockInterface, body.rawValue, &lock)
         defer { JPH_BodyLockInterface_UnlockWrite(lockInterface, &lock) }
@@ -711,7 +729,7 @@ public final class PhysicsWorld {
         var o = JPH_RVec3(origin)
         var d = JPH_Vec3(direction)
         var result = JPH_RayCastResult()
-        let query = JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+        let query = narrowPhaseQuery
         guard JPH_NarrowPhaseQuery_CastRay(query, &o, &d, &result, nil, nil, nil) else {
             return nil
         }
@@ -728,7 +746,7 @@ public final class PhysicsWorld {
             treatConvexAsSolid: true
         )
         var results: [JPH_RayCastResult] = []
-        let query = JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+        let query = narrowPhaseQuery
         withUnsafeMutablePointer(to: &results) { resultsPointer in
             _ = JPH_NarrowPhaseQuery_CastRay3(
                 query, &o, &d, &settings, JPH_CollisionCollectorType_AllHitSorted,
@@ -783,7 +801,7 @@ public final class PhysicsWorld {
         var settings = JPH_ShapeCastSettings()
         JPH_ShapeCastSettings_Init(&settings)
         var results: [JPH_ShapeCastResult] = []
-        let query = JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+        let query = narrowPhaseQuery
         withUnsafeMutablePointer(to: &results) { resultsPointer in
             _ = JPH_NarrowPhaseQuery_CastShape2(
                 query, shapeHandle, &jphTransform, &jphDirection, &settings, &baseOffset, collector,
@@ -823,7 +841,7 @@ public final class PhysicsWorld {
         JPH_CollideShapeSettings_Init(&settings)
         settings.maxSeparationDistance = maxSeparationDistance
         var results: [JPH_CollideShapeResult] = []
-        let query = JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+        let query = narrowPhaseQuery
         withUnsafeMutablePointer(to: &results) { resultsPointer in
             _ = JPH_NarrowPhaseQuery_CollideShape2(
                 query, shapeHandle, &scale, &jphTransform, &settings, &baseOffset, JPH_CollisionCollectorType_AllHit,
@@ -845,7 +863,7 @@ public final class PhysicsWorld {
     public func bodies(containing point: SIMD3<Float>) -> [BodyID] {
         var p = JPH_RVec3(point)
         var results: [BodyID] = []
-        let query = JPH_PhysicsSystem_GetNarrowPhaseQuery(system)
+        let query = narrowPhaseQuery
         withUnsafeMutablePointer(to: &results) { resultsPointer in
             _ = JPH_NarrowPhaseQuery_CollidePoint2(
                 query, &p, JPH_CollisionCollectorType_AllHit,

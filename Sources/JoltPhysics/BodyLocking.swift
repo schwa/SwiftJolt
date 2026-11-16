@@ -188,7 +188,7 @@ public struct LockedBody: ~Copyable {
 extension PhysicsWorld {
     /// Runs `action` with a read lock on `body`. Returns nil if the body does not exist.
     public func readBody<Result>(_ body: BodyID, _ action: (borrowing LockedBody) throws -> Result) rethrows -> Result? {
-        let lockInterface = JPH_PhysicsSystem_GetBodyLockInterface(system)
+        let lockInterface = bodyLockInterface
         var lock = JPH_BodyLockRead()
         JPH_BodyLockInterface_LockRead(lockInterface, body.rawValue, &lock)
         defer { JPH_BodyLockInterface_UnlockRead(lockInterface, &lock) }
@@ -200,7 +200,7 @@ extension PhysicsWorld {
 
     /// Runs `action` with a write lock on `body`. Returns nil if the body does not exist.
     public func writeBody<Result>(_ body: BodyID, _ action: (inout LockedBody) throws -> Result) rethrows -> Result? {
-        let lockInterface = JPH_PhysicsSystem_GetBodyLockInterface(system)
+        let lockInterface = bodyLockInterface
         var lock = JPH_BodyLockWrite()
         JPH_BodyLockInterface_LockWrite(lockInterface, body.rawValue, &lock)
         defer { JPH_BodyLockInterface_UnlockWrite(lockInterface, &lock) }

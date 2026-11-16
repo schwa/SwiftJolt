@@ -155,7 +155,7 @@ extension PhysicsWorld {
         _ action: (OpaquePointer, OpaquePointer) -> Result
     ) -> Result {
         let ids = [body1, body2].compactMap(\.self).map(\.rawValue)
-        let lockInterface = JPH_PhysicsSystem_GetBodyLockInterface(system)
+        let lockInterface = bodyLockInterface
         let lock = JPH_BodyLockInterface_LockMultiWrite(lockInterface, ids, UInt32(ids.count))!
         defer { JPH_BodyLockMultiWrite_Destroy(lock) }
         let bodies = (0..<UInt32(ids.count)).map { index in
