@@ -57,6 +57,10 @@ public enum Shape: Sendable {
     case taperedCapsule(halfHeight: Float, topRadius: Float, bottomRadius: Float)
     /// A cylinder along the Y axis.
     case cylinder(halfHeight: Float, radius: Float)
+    /// A cylinder along the Y axis with different top and bottom radii.
+    case taperedCylinder(halfHeight: Float, topRadius: Float, bottomRadius: Float, convexRadius: Float = 0.05)
+    /// A shape with no collision geometry, for bodies that only exist to be constrained or moved.
+    case empty(centerOfMass: SIMD3<Float> = .zero)
     /// A triangle mesh. `indices` holds three vertex indices per triangle, counter-clockwise when
     /// seen from the front. Jolt only supports mesh shapes on static and kinematic bodies.
     case mesh(vertices: [SIMD3<Float>], indices: [UInt32])
@@ -121,6 +125,18 @@ public enum Shape: Sendable {
             return shape
         case .cylinder(let halfHeight, let radius):
             return JPH_CylinderShape_Create(halfHeight, radius)!
+        case .taperedCylinder(let halfHeight, let topRadius, let bottomRadius, let convexRadius):
+            let settings = JPH_TaperedCylinderShapeSettings_Create(halfHeight, topRadius, bottomRadius, convexRadius, nil)!
+            defer { JPH_ShapeSettings_Destroy(settings) }
+            guard let shape = JPH_TaperedCylinderShapeSettings_CreateShape(settings) else {
+                preconditionFailure("Invalid tapered cylinder: halfHeight \(halfHeight), radii \(topRadius)/\(bottomRadius)")
+            }
+            return shape
+        case .empty(let centerOfMass):
+            var jphCenterOfMass = JPH_Vec3(centerOfMass)
+            let settings = JPH_EmptyShapeSettings_Create(&jphCenterOfMass)!
+            defer { JPH_ShapeSettings_Destroy(settings) }
+            return JPH_EmptyShapeSettings_CreateShape(settings)!
         case .mesh(let vertices, let indices):
             precondition(indices.count.isMultiple(of: 3), "Mesh indices must come in groups of three")
             precondition(indices.allSatisfy { Int($0) < vertices.count }, "Mesh index out of range")

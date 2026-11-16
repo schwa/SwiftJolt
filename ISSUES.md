@@ -1547,12 +1547,13 @@ Unwrapped joltc API:
 ## 79: Tapered cylinder and empty shapes are not available
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:shapes, effort:s
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:38:59Z
+closed: 2026-11-16T23:38:59Z
 +++
 
 Shape has no tapered cylinder or empty shape case.
@@ -1566,6 +1567,8 @@ Unwrapped joltc API:
 - `JPH_TaperedCylinderShape_GetTopRadius`
 - `JPH_TaperedCylinderShapeSettings_Create`
 - `JPH_TaperedCylinderShapeSettings_CreateShape`
+
+- `2026-11-16T23:38:59Z`: Added Shape.taperedCylinder and Shape.empty. TaperedCylinderShape getters not wrapped: no other shape exposes dimension getters; parameters live on the Shape enum.
 
 ---
 

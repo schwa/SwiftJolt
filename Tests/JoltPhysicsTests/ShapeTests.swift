@@ -50,6 +50,25 @@ extension JoltTests {
             #expect(abs(top.position.y - 1.5) < 1e-3)
         }
 
+        @Test func taperedCylinderRayHitsMatchRadii() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.taperedCylinder(halfHeight: 1, topRadius: 0.2, bottomRadius: 0.6), motionType: .static)
+            let top = try #require(world.castRay(origin: [0, 10, 0], direction: [0, -20, 0]))
+            #expect(top.body == body)
+            #expect(abs(top.position.y - 1) < 1e-3)
+            let bottom = try #require(world.castRay(origin: [0, -10, 0], direction: [0, 20, 0]))
+            #expect(abs(bottom.position.y + 1) < 1e-3)
+            #expect(!world.bodies(containing: [0.5, -0.9, 0]).isEmpty)
+            #expect(world.bodies(containing: [0.5, 0.9, 0]).isEmpty)
+        }
+
+        @Test func emptyShapeHasNoCollision() throws {
+            let world = try makeWorld()
+            world.addBody(.empty(), motionType: .static)
+            #expect(world.castRay(origin: [0, 10, 0], direction: [0, -20, 0]) == nil)
+            #expect(world.bodies(containing: .zero).isEmpty)
+        }
+
         @Test func planeIsSolidBelowSurface() throws {
             let world = try makeWorld()
             let body = world.addBody(.plane(offset: 2), motionType: .static)
