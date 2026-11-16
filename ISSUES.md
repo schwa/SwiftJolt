@@ -1567,12 +1567,13 @@ Unwrapped joltc API:
 ## 80: Shapes can't be inspected or queried
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:shapes, effort:l
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:04Z
+updated: 2026-11-16T23:13:33Z
+closed: 2026-11-16T23:13:33Z
 +++
 
 Swift Shape is a value enum. There is no way to get volume, local/world bounds, mass properties, inner radius, surface normal, or supporting face, or to ray cast / point test against one shape. Shape-specific getters (box half extents, sphere radius, etc.) are also unused.
@@ -1635,6 +1636,8 @@ Unwrapped joltc API:
 - `JPH_TriangleShape_GetVertex1`
 - `JPH_TriangleShape_GetVertex2`
 - `JPH_TriangleShape_GetVertex3`
+
+- `2026-11-16T23:13:33Z`: Added Shape.properties (ShapeProperties: volume, centerOfMass, bounds, innerRadius, mass, inertia, mustBeStatic), Shape.castRay(origin:direction:) -> ShapeRayHit (with surface normal), Shape.contains(_:), isValidScale(_:), validScale(closestTo:). Results are in shape space (Jolt's are relative to the center of mass). Each call builds a Jolt shape and starts Jolt if no engine is alive. Not wrapped: shape-specific getters (box half extents etc., already in the enum), GetType/SubType, Draw (#97), GetSupportingFace, GetLeafShape/GetMaterial, SubShapeID bits, shape user data, ConvexShape density, mesh/height field runtime getters.
 
 ---
 
