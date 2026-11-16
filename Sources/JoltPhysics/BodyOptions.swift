@@ -1,6 +1,24 @@
 import CJolt
 import simd
 
+/// Which axes a body can move and rotate along. Use `.plane2D` for 2D physics in the XY plane.
+public struct AllowedDegreesOfFreedom: OptionSet, Sendable, Hashable {
+    public let rawValue: UInt32
+
+    public init(rawValue: UInt32) {
+        self.rawValue = rawValue
+    }
+
+    public static let translationX = Self(rawValue: JPH_AllowedDOFs_TranslationX.rawValue)
+    public static let translationY = Self(rawValue: JPH_AllowedDOFs_TranslationY.rawValue)
+    public static let translationZ = Self(rawValue: JPH_AllowedDOFs_TranslationZ.rawValue)
+    public static let rotationX = Self(rawValue: JPH_AllowedDOFs_RotationX.rawValue)
+    public static let rotationY = Self(rawValue: JPH_AllowedDOFs_RotationY.rawValue)
+    public static let rotationZ = Self(rawValue: JPH_AllowedDOFs_RotationZ.rawValue)
+    public static let all: Self = [.translationX, .translationY, .translationZ, .rotationX, .rotationY, .rotationZ]
+    public static let plane2D: Self = [.translationX, .translationY, .rotationZ]
+}
+
 /// Less common body creation settings. Defaults match Jolt's.
 public struct BodyOptions: Sendable, Equatable {
     public var linearVelocity: SIMD3<Float> = .zero
@@ -34,6 +52,8 @@ public struct BodyOptions: Sendable, Equatable {
     /// Static sensors only detect moving bodies; kinematic sensors also need
     /// `collideKinematicVsNonDynamic` to detect static ones.
     public var isSensor = false
+    /// Axes the body may move and rotate along. Ignored for static bodies.
+    public var allowedDegreesOfFreedom: AllowedDegreesOfFreedom = .all
 
     public init(
         linearVelocity: SIMD3<Float> = .zero,
@@ -56,8 +76,10 @@ public struct BodyOptions: Sendable, Equatable {
         positionStepsOverride: Int = 0,
         objectLayer: ObjectLayer? = nil,
         collisionGroup: CollisionGroup = .ungrouped,
-        isSensor: Bool = false
+        isSensor: Bool = false,
+        allowedDegreesOfFreedom: AllowedDegreesOfFreedom = .all
     ) {
+        precondition(!allowedDegreesOfFreedom.isEmpty, "A body needs at least one degree of freedom")
         if let mass {
             precondition(mass > 0, "Mass must be positive")
         }
@@ -83,6 +105,7 @@ public struct BodyOptions: Sendable, Equatable {
         self.objectLayer = objectLayer
         self.collisionGroup = collisionGroup
         self.isSensor = isSensor
+        self.allowedDegreesOfFreedom = allowedDegreesOfFreedom
     }
 
     public static let `default` = Self()
@@ -108,6 +131,7 @@ public struct BodyOptions: Sendable, Equatable {
         JPH_BodyCreationSettings_SetNumVelocityStepsOverride(settings, UInt32(velocityStepsOverride))
         JPH_BodyCreationSettings_SetNumPositionStepsOverride(settings, UInt32(positionStepsOverride))
         JPH_BodyCreationSettings_SetIsSensor(settings, isSensor)
+        JPH_BodyCreationSettings_SetAllowedDOFs(settings, JPH_AllowedDOFs(rawValue: allowedDegreesOfFreedom.rawValue))
         var group = collisionGroup.jph
         JPH_BodyCreationSettings_SetCollisionGroup(settings, &group)
         if let mass {

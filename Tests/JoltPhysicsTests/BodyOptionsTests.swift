@@ -82,6 +82,26 @@ extension JoltTests {
             #expect(JPH_BodyInterface_IsActive(world.bodyInterface, awake.rawValue))
         }
 
+        @Test func plane2DBodyStaysInPlane() throws {
+            let world = try makeWorld()
+            let body = world.addBody(
+                .box(halfExtents: [0.5, 0.5, 0.5]),
+                options: BodyOptions(linearVelocity: [1, 0, 3], angularVelocity: [2, 2, 2], allowedDegreesOfFreedom: .plane2D)
+            )
+            #expect(world.allowedDegreesOfFreedom(of: body) == .plane2D)
+            simulate(world, seconds: 1)
+            #expect(world.position(of: body).z == 0)
+            #expect(world.position(of: body).y < -1)
+            #expect(world.position(of: body).x > 0.5)
+            let spin = world.angularVelocity(of: body)
+            #expect(spin.x == 0 && spin.y == 0 && spin.z != 0)
+        }
+
+        @Test func defaultAllowsAllDegreesOfFreedom() throws {
+            let world = try makeWorld()
+            #expect(world.allowedDegreesOfFreedom(of: world.addBody(.sphere(radius: 1))) == .all)
+        }
+
         @Test func flagsAreApplied() throws {
             let world = try makeWorld()
             let options = BodyOptions(

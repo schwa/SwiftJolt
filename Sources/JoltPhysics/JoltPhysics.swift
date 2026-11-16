@@ -625,6 +625,10 @@ public final class PhysicsWorld {
         JPH_BodyInterface_SetGravityFactor(bodyInterface, body.rawValue, factor)
     }
 
+    public func allowedDegreesOfFreedom(of body: BodyID) -> AllowedDegreesOfFreedom {
+        withMotionProperties(of: body) { AllowedDegreesOfFreedom(rawValue: JPH_MotionProperties_GetAllowedDOFs($0).rawValue) }
+    }
+
     public func motionQuality(of body: BodyID) -> MotionQuality {
         JPH_BodyInterface_GetMotionQuality(bodyInterface, body.rawValue) == JPH_MotionQuality_LinearCast ? .linearCast : .discrete
     }

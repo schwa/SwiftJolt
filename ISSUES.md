@@ -1133,12 +1133,13 @@ Unwrapped joltc API:
 ## 67: Bodies can't be restricted to a subset of degrees of freedom
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:39:54Z
+closed: 2026-11-16T22:39:54Z
 +++
 
 There is no way to set Jolt's AllowedDOFs on a body. This is how 2D physics (lock Z translation and X/Y rotation) and upright-only bodies are done in Jolt.
@@ -1147,6 +1148,8 @@ Unwrapped joltc API:
 - `JPH_BodyCreationSettings_GetAllowedDOFs`
 - `JPH_BodyCreationSettings_SetAllowedDOFs`
 - `JPH_MotionProperties_GetAllowedDOFs`
+
+- `2026-11-16T22:39:54Z`: Added AllowedDegreesOfFreedom option set (with .plane2D), BodyOptions.allowedDegreesOfFreedom and PhysicsWorld.allowedDegreesOfFreedom(of:).
 
 ---
 
