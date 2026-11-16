@@ -471,6 +471,11 @@ public final class PhysicsWorld {
         JPH_BodyInterface_IsAdded(bodyInterface, body.rawValue)
     }
 
+    /// False while the body is asleep.
+    public func isActive(_ body: BodyID) -> Bool {
+        JPH_BodyInterface_IsActive(bodyInterface, body.rawValue)
+    }
+
     public func position(of body: BodyID) -> SIMD3<Float> {
         var result = JPH_RVec3()
         JPH_BodyInterface_GetPosition(bodyInterface, body.rawValue, &result)
@@ -543,14 +548,76 @@ public final class PhysicsWorld {
         JPH_BodyInterface_SetLinearVelocity(bodyInterface, body.rawValue, &v)
     }
 
-    public func addImpulse(to body: BodyID, impulse: SIMD3<Float>) {
-        var imp = JPH_Vec3(impulse)
-        JPH_BodyInterface_AddImpulse(bodyInterface, body.rawValue, &imp)
+    /// Sets both velocities at once.
+    public func setVelocity(of body: BodyID, linear: SIMD3<Float>, angular: SIMD3<Float>) {
+        var l = JPH_Vec3(linear)
+        var a = JPH_Vec3(angular)
+        JPH_BodyInterface_SetLinearAndAngularVelocity(bodyInterface, body.rawValue, &l, &a)
     }
 
-    public func addForce(to body: BodyID, force: SIMD3<Float>) {
+    /// Adds to the body's current velocities.
+    public func addVelocity(to body: BodyID, linear: SIMD3<Float> = .zero, angular: SIMD3<Float> = .zero) {
+        var l = JPH_Vec3(linear)
+        var a = JPH_Vec3(angular)
+        JPH_BodyInterface_AddLinearAndAngularVelocity(bodyInterface, body.rawValue, &l, &a)
+    }
+
+    /// Velocity of a world-space point fixed to the body.
+    public func velocity(of body: BodyID, at point: SIMD3<Float>) -> SIMD3<Float> {
+        var p = JPH_RVec3(point)
+        var result = JPH_Vec3()
+        JPH_BodyInterface_GetPointVelocity(bodyInterface, body.rawValue, &p, &result)
+        return result.simd
+    }
+
+    public func centerOfMassPosition(of body: BodyID) -> SIMD3<Float> {
+        var result = JPH_RVec3()
+        JPH_BodyInterface_GetCenterOfMassPosition(bodyInterface, body.rawValue, &result)
+        return result.simd
+    }
+
+    public func centerOfMassTransform(of body: BodyID) -> simd_float4x4 {
+        var result = JPH_RMat4()
+        JPH_BodyInterface_GetCenterOfMassTransform(bodyInterface, body.rawValue, &result)
+        return result.simd
+    }
+
+    /// Applies an impulse at the center of mass, or at world-space `point` if given.
+    public func addImpulse(to body: BodyID, impulse: SIMD3<Float>, at point: SIMD3<Float>? = nil) {
+        var imp = JPH_Vec3(impulse)
+        if let point {
+            var p = JPH_RVec3(point)
+            JPH_BodyInterface_AddImpulse2(bodyInterface, body.rawValue, &imp, &p)
+        } else {
+            JPH_BodyInterface_AddImpulse(bodyInterface, body.rawValue, &imp)
+        }
+    }
+
+    public func addAngularImpulse(to body: BodyID, impulse: SIMD3<Float>) {
+        var imp = JPH_Vec3(impulse)
+        JPH_BodyInterface_AddAngularImpulse(bodyInterface, body.rawValue, &imp)
+    }
+
+    /// Applies a force for the next step, at the center of mass or at world-space `point` if given.
+    public func addForce(to body: BodyID, force: SIMD3<Float>, at point: SIMD3<Float>? = nil) {
         var f = JPH_Vec3(force)
-        JPH_BodyInterface_AddForce(bodyInterface, body.rawValue, &f)
+        if let point {
+            var p = JPH_RVec3(point)
+            JPH_BodyInterface_AddForce2(bodyInterface, body.rawValue, &f, &p)
+        } else {
+            JPH_BodyInterface_AddForce(bodyInterface, body.rawValue, &f)
+        }
+    }
+
+    /// Applies a torque for the next step.
+    public func addTorque(to body: BodyID, torque: SIMD3<Float>) {
+        var t = JPH_Vec3(torque)
+        JPH_BodyInterface_AddTorque(bodyInterface, body.rawValue, &t)
+    }
+
+    /// Restarts the countdown before a resting body may sleep.
+    public func resetSleepTimer(of body: BodyID) {
+        JPH_BodyInterface_ResetSleepTimer(bodyInterface, body.rawValue)
     }
 
     // MARK: - Motion Properties

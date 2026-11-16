@@ -134,6 +134,55 @@ public struct LockedBody: ~Copyable {
         var i = JPH_Vec3(impulse)
         JPH_Body_AddAngularImpulse(pointer, &i)
     }
+
+    /// Force added since the last step, not yet applied.
+    public var accumulatedForce: SIMD3<Float> {
+        var result = JPH_Vec3()
+        JPH_Body_GetAccumulatedForce(pointer, &result)
+        return result.simd
+    }
+
+    /// Torque added since the last step, not yet applied.
+    public var accumulatedTorque: SIMD3<Float> {
+        var result = JPH_Vec3()
+        JPH_Body_GetAccumulatedTorque(pointer, &result)
+        return result.simd
+    }
+
+    public mutating func resetForce() {
+        JPH_Body_ResetForce(pointer)
+    }
+
+    public mutating func resetTorque() {
+        JPH_Body_ResetTorque(pointer)
+    }
+
+    /// Clears velocities and accumulated force and torque.
+    public mutating func resetMotion() {
+        JPH_Body_ResetMotion(pointer)
+    }
+
+    /// Sets the linear velocity, clamped to the body's max linear velocity.
+    public mutating func setLinearVelocityClamped(_ velocity: SIMD3<Float>) {
+        var v = JPH_Vec3(velocity)
+        JPH_Body_SetLinearVelocityClamped(pointer, &v)
+    }
+
+    /// Sets the angular velocity, clamped to the body's max angular velocity.
+    public mutating func setAngularVelocityClamped(_ velocity: SIMD3<Float>) {
+        var v = JPH_Vec3(velocity)
+        JPH_Body_SetAngularVelocityClamped(pointer, &v)
+    }
+
+    public mutating func resetSleepTimer() {
+        JPH_Body_ResetSleepTimer(pointer)
+    }
+
+    public var centerOfMassTransform: simd_float4x4 {
+        var result = JPH_RMat4()
+        JPH_Body_GetCenterOfMassTransform(pointer, &result)
+        return result.simd
+    }
 }
 
 extension PhysicsWorld {

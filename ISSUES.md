@@ -1251,12 +1251,13 @@ Unwrapped joltc API (Body / BodyInterface):
 ## 70: Force, torque and velocity helpers are incomplete
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:41:45Z
+closed: 2026-11-16T22:41:45Z
 +++
 
 Several Jolt body force/velocity operations have no Swift equivalent: reading accumulated force/torque, resetting force/torque/motion, clamped velocity setters, combined linear+angular get/set, point velocity, adding velocity, and combined force+torque.
@@ -1289,6 +1290,8 @@ Unwrapped joltc API:
 - `JPH_BodyInterface_SetLinearAndAngularVelocity`
 - `JPH_BodyInterface_SetPositionAndRotationWhenChanged`
 - `JPH_BodyInterface_SetPositionRotationAndVelocity`
+
+- `2026-11-16T22:41:45Z`: Added PhysicsWorld setVelocity/addVelocity, velocity(of:at:), centerOfMassPosition/Transform, addImpulse/addForce at a point, addAngularImpulse, addTorque, resetSleepTimer, isActive; LockedBody accumulatedForce/Torque, resetForce/Torque/Motion, clamped velocity setters, resetSleepTimer, centerOfMassTransform. Skipped as redundant: AddForceAndTorque (= addForce + addTorque), SetPositionRotationAndVelocity, GetPositionAndRotation, SetPositionAndRotationWhenChanged. Inverse inertia getters already existed.
 
 ---
 
@@ -1351,6 +1354,8 @@ Unwrapped joltc API:
 - `JPH_BodyInterface_DeactivateBodies`
 - `JPH_BodyInterface_DeactivateBody`
 - `JPH_PhysicsSystem_ActivateBodiesInAABox`
+
+- `2026-11-16T22:41:45Z`: isActive(_:) was added with #70.
 
 ---
 
