@@ -1998,12 +1998,13 @@ Unwrapped joltc API:
 ## 91: Constraint-specific getters (limits, local frames, lambdas) are missing
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:constraints, effort:m
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:52:57Z
+closed: 2026-11-16T23:52:57Z
 +++
 
 Most constraint types lack getters for their settings, local-space frames, limits, and total lambdas (applied impulse), which are needed to detect breaking forces.
@@ -2058,6 +2059,7 @@ Unwrapped joltc API:
 - `JPH_SwingTwistConstraint_GetTotalLambdaTwist`
 
 - `2026-11-16T22:12:04Z`: Related: #47 (rack-and-pinion constraint).
+- `2026-11-16T23:52:57Z`: Added total-lambda getters for fixed, distance, point, hinge, slider, cone, swing-twist, six-DOF and gear constraints; hinge local-space points/axes and hasLimits; six-DOF translationLimits/rotationLimits; SixDOFConstraint.setTargetOrientationInBodySpace. Not wrapped: the *_GetSettings functions (constraints are built from Swift arguments and the useful values are now direct getters) and SixDOFConstraintSettings_IsFixedAxis/IsFreeAxis (settings-level; SixDOFConstraint.limit(for:) already answers this).
 
 ---
 

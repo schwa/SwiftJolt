@@ -483,5 +483,50 @@ extension JoltTests {
             #expect(hinge != nil)
             hinge = nil
         }
+
+        @Test func fixedConstraintImpulseHoldsWeight() throws {
+            let world = try makeWorld()
+            let box = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]), position: [0, 5, 0], options: BodyOptions(mass: 10))
+            let weld = world.addFixedConstraint(between: nil, and: box)
+            let deltaTime: Float = 1.0 / 60.0
+            simulate(world, seconds: 0.5)
+            // Holding 10 kg against gravity takes m·g·dt per step.
+            #expect(abs(abs(weld.totalLambdaPosition.y) - 10 * 9.81 * deltaTime) < 0.05)
+            #expect(simd_length(weld.totalLambdaRotation) < 0.01)
+        }
+
+        @Test func hingeLocalFramesAndImpulses() throws {
+            let world = try makeWorld()
+            let door = world.addBody(.box(halfExtents: [0.5, 1, 0.05]), position: [0.5, 1, 0])
+            let hinge = world.addHingeConstraint(between: nil, and: door, point: [0, 1, 0], axis: [0, 1, 0], limits: -1...1)
+            #expect(hinge.hasLimits)
+            #expect(simd_distance(hinge.localSpacePoint2, [-0.5, 0, 0]) < 1e-4)
+            #expect(simd_distance(hinge.localSpaceHingeAxis1, [0, 1, 0]) < 1e-4)
+            #expect(abs(simd_dot(hinge.localSpaceNormalAxis2, hinge.localSpaceHingeAxis2)) < 1e-4)
+            simulate(world, seconds: 0.5)
+            // The hinge carries the door's weight.
+            #expect(abs(hinge.totalLambdaPosition.y) > 0.1)
+            #expect(hinge.totalLambdaMotor == 0)
+
+            let free = world.addHingeConstraint(between: nil, and: world.addBody(.sphere(radius: 0.1), position: [5, 0, 0]), point: [5, 0, 0], axis: [0, 0, 1])
+            #expect(!free.hasLimits)
+        }
+
+        @Test func sixDOFReportsLimitVectors() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.sphere(radius: 0.5))
+            let constraint = world.addSixDOFConstraint(between: nil, and: body, point: .zero, limits: [
+                .translationX: .limited(-1...2),
+                .translationY: .fixed,
+                .rotationZ: .limited(-0.5...0.5)
+            ])
+            let translation = constraint.translationLimits
+            #expect(translation.min.x == -1 && translation.max.x == 2)
+            #expect(translation.min.y == 0 && translation.max.y == 0)
+            let rotation = constraint.rotationLimits
+            #expect(abs(rotation.min.z + 0.5) < 1e-4 && abs(rotation.max.z - 0.5) < 1e-4)
+            simulate(world, seconds: 0.2)
+            #expect(abs(constraint.totalLambdaPosition.y) > 0)
+        }
     }
 }
