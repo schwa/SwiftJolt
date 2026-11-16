@@ -839,13 +839,14 @@ Wrap JPH_SkeletonPose: set skeleton, root offset, joint states/matrices, Calcula
 ## 55: Wrap RagdollSettings
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:m, subtask, area:ragdolls
 depends: 53
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:22:17Z
+closed: 2026-11-16T20:22:17Z
 +++
 
 Wrap JPH_RagdollSettings: create from skeleton, per-part shape/position/rotation/motion type/layer/mass, part-to-parent constraints, Stabilize, CreateConstraints. Accept: build settings for a 2–3 part ragdoll in a test. Part of #35.
