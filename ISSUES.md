@@ -2042,12 +2042,13 @@ Unwrapped joltc API:
 ## 92: Vehicle engine, transmission, and differential tuning is not exposed
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:vehicles, effort:l
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:20:19Z
+closed: 2026-11-16T23:20:19Z
 +++
 
 Vehicles use fixed engine torque curves, transmission ratios, clutch settings, and differential settings. LinearCurve (used for torque and friction curves) is not wrapped either.
@@ -2105,6 +2106,8 @@ Unwrapped joltc API:
 - `JPH_VehicleTransmissionSettings_SetShiftUpRPM`
 - `JPH_VehicleTransmissionSettings_SetSwitchLatency`
 - `JPH_VehicleTransmissionSettings_SetSwitchTime`
+
+- `2026-11-16T23:20:19Z`: EngineSettings gains torqueCurve, inertia, angularDamping. New TransmissionSettings (mode, gear ratios, reverse ratios, switch/clutch timing, shift RPMs, clutch strength; .tracked preset matching Jolt's tracked defaults) on addWheeledVehicle/addTrackedVehicle/addMotorcycle. New DifferentialSettings and addWheeledVehicle(differentials:differentialLimitedSlipRatio:...). Runtime Transmission (currentGear, clutchFriction, isSwitchingGear, currentRatio, setMode, setGear) and WheeledVehicle.wheelSpeedAtClutch. Not wrapped: VehicleEngine runtime internals (ApplyTorque/ApplyDamping/ClampRPM/SetCurrentRPM), VehicleTransmission_Update, LinearCurve as a public type.
 
 ---
 

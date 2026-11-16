@@ -6,7 +6,11 @@ extension JoltTests {
     @Suite
     struct VehicleTests {
         /// A 4-wheel car on a large floor, front-wheel drive and steering. Wheel order: FL, FR, RL, RR.
-        func makeCar() throws -> (PhysicsWorld, body: BodyID, car: WheeledVehicle) {
+        func makeCar(
+            differentials: [DifferentialSettings] = [DifferentialSettings(leftWheel: 0, rightWheel: 1)],
+            engine: EngineSettings = EngineSettings(),
+            transmission: TransmissionSettings = TransmissionSettings()
+        ) throws -> (PhysicsWorld, body: BodyID, car: WheeledVehicle) {
             let world = try makeWorld()
             world.addBody(.box(halfExtents: [100, 0.5, 100]), position: [0, -0.5, 0], motionType: .static, friction: 1)
             let body = world.addBody(.box(halfExtents: [0.9, 0.2, 2]), position: [0, 1, 0])
@@ -17,8 +21,65 @@ extension JoltTests {
                 WheeledVehicleWheel(WheelSettings(position: [-0.9, 0, -1.4])),
                 WheeledVehicleWheel(WheelSettings(position: [0.9, 0, -1.4]))
             ]
-            let car = world.addWheeledVehicle(body: body, wheels: wheels, drivenWheels: [(0, 1)])
+            let car = world.addWheeledVehicle(body: body, wheels: wheels, differentials: differentials, engine: engine, transmission: transmission)
             return (world, body, car)
+        }
+
+        func driveDistance(_ car: (PhysicsWorld, body: BodyID, car: WheeledVehicle), seconds: Float = 3) -> Float {
+            simulate(car.0, seconds: 1)
+            car.car.setDriverInput(forward: 1)
+            simulate(car.0, seconds: seconds)
+            return car.0.position(of: car.body).z
+        }
+
+        @Test func manualTransmissionHoldsGear() throws {
+            let car = try makeCar(transmission: TransmissionSettings(mode: .manual))
+            car.car.transmission.setGear(2)
+            _ = driveDistance(car)
+            #expect(car.car.currentGear == 2)
+            #expect(car.car.transmission.currentRatio == 1.78)
+            #expect(car.car.transmission.clutchFriction == 1)
+            #expect(!car.car.transmission.isSwitchingGear)
+            #expect(car.car.wheelSpeedAtClutch > 0)
+            car.car.transmission.setGear(-1)
+            simulate(car.0, seconds: 2)
+            #expect(car.car.currentGear == -1)
+            #expect(car.car.transmission.currentRatio == -2.9)
+            car.car.transmission.setMode(.automatic)
+        }
+
+        @Test func singleGearNeverShifts() throws {
+            let car = try makeCar(transmission: TransmissionSettings(gearRatios: [3]))
+            #expect(driveDistance(car) > 2)
+            #expect(car.car.currentGear == 1)
+        }
+
+        @Test func flatZeroTorqueCurveDoesNotMove() throws {
+            // Jolt keeps the engine at least at min RPM, which drives the car, so allow 0 RPM.
+            let stalled = driveDistance(try makeCar(engine: EngineSettings(rpm: 0...6000, torqueCurve: [(0, 0), (1, 0)])))
+            let normal = driveDistance(try makeCar(engine: EngineSettings(rpm: 0...6000)))
+            #expect(stalled < normal / 4, "stalled \(stalled), normal \(normal)")
+        }
+
+        @Test func moreTorqueGoesFurther() throws {
+            let weak = driveDistance(try makeCar(engine: EngineSettings(maxTorque: 100)))
+            let strong = driveDistance(try makeCar(engine: EngineSettings(maxTorque: 800, inertia: 0.2)))
+            #expect(strong > weak + 1)
+        }
+
+        @Test func rearWheelDriveViaDifferential() throws {
+            let car = try makeCar(differentials: [DifferentialSettings(leftWheel: 2, rightWheel: 3, ratio: 4, limitedSlipRatio: .infinity)])
+            #expect(driveDistance(car) > 3)
+            #expect(car.car.wheelState(at: 2).angularVelocity > 1)
+        }
+
+        @Test func differentialTorqueShares() throws {
+            // All torque to the front; the rear differential gets none.
+            let car = try makeCar(differentials: [
+                DifferentialSettings(leftWheel: 0, rightWheel: 1, engineTorqueRatio: 1),
+                DifferentialSettings(leftWheel: 2, rightWheel: 3)
+            ])
+            #expect(driveDistance(car) > 3)
         }
 
         @Test func carSettlesOnItsWheels() throws {
@@ -213,6 +274,13 @@ extension JoltTests {
             simulate(world, seconds: 1)
             // Without the vehicle the box just sits on the floor.
             #expect(abs(world.position(of: body).z) < 0.1)
+        }
+
+        @Test func tankUsesTrackedTransmissionDefaults() throws {
+            let (world, _, tank) = try makeTank()
+            tank.setDriverInput(forward: 1)
+            simulate(world, seconds: 1)
+            #expect([4, 3, 2, 1].contains(tank.transmission.currentRatio))
         }
 
         @Test func vehicleIsNotATwoBodyConstraint() throws {

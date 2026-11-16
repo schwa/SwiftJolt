@@ -73,9 +73,13 @@ public final class TrackedVehicle: Vehicle {
         JPH_VehicleEngine_GetCurrentRPM(JPH_TrackedVehicleController_GetEngine(controller))
     }
 
+    public var transmission: Transmission {
+        Transmission(handle: JPH_TrackedVehicleController_GetTransmission(controller)!, vehicle: self)
+    }
+
     /// 0 is neutral, negative is reverse.
     public var currentGear: Int {
-        Int(JPH_VehicleTransmission_GetCurrentGear(JPH_TrackedVehicleController_GetTransmission(controller)))
+        transmission.currentGear
     }
 
     /// Radians per second of the track's driven wheel.
@@ -93,6 +97,7 @@ extension PhysicsWorld {
         leftTrack: Track,
         rightTrack: Track,
         engine: EngineSettings = EngineSettings(),
+        transmission: TransmissionSettings = .tracked,
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1],
         maxPitchRollAngle: Float = .pi
@@ -103,8 +108,8 @@ extension PhysicsWorld {
         let controllerSettings = JPH_TrackedVehicleControllerSettings_Create()!
         var engineSettings = JPH_VehicleEngineSettings()
         JPH_TrackedVehicleControllerSettings_GetEngine(controllerSettings, &engineSettings)
-        engine.update(&engineSettings)
-        JPH_TrackedVehicleControllerSettings_SetEngine(controllerSettings, &engineSettings)
+        engine.withJoltSettings(startingFrom: engineSettings) { JPH_TrackedVehicleControllerSettings_SetEngine(controllerSettings, $0) }
+        transmission.apply { JPH_TrackedVehicleControllerSettings_SetTransmission(controllerSettings, $0) }
         for (side, track) in [(JPH_TrackSide_Left, leftTrack), (JPH_TrackSide_Right, rightTrack)] {
             var settings = JPH_VehicleTrackSettings()
             JPH_VehicleTrackSettings_Init(&settings)

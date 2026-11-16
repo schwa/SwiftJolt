@@ -49,12 +49,14 @@ extension PhysicsWorld {
         front: WheeledVehicleWheel,
         rear: WheeledVehicleWheel,
         engine: EngineSettings = EngineSettings(maxTorque: 150, rpm: 1000...10000),
+        transmission: TransmissionSettings = TransmissionSettings(),
         maxLeanAngle: Float = .pi / 4,
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1]
     ) -> Motorcycle {
         let wheels = [front, rear]
-        let controllerSettings = makeWheeledControllerSettings(drivenWheels: [(left: -1, right: 1)], engine: engine) {
+        let rearOnly = DifferentialSettings(leftWheel: -1, rightWheel: 1)
+        let controllerSettings = makeWheeledControllerSettings(differentials: [rearOnly], engine: engine, transmission: transmission) {
             let settings = JPH_MotorcycleControllerSettings_Create()!
             JPH_MotorcycleControllerSettings_SetMaxLeanAngle(settings, maxLeanAngle)
             return settings

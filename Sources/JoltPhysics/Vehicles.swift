@@ -32,10 +32,25 @@ public struct EngineSettings: Sendable {
     /// Newton-meters.
     public var maxTorque: Float = 500
     public var rpm: ClosedRange<Float> = 1000...6000
+    /// Fraction of `maxTorque` available across the RPM range. `rpm` 0 is `rpm.lowerBound`, 1 is
+    /// `rpm.upperBound`. Empty keeps Jolt's curve: 0.8 at 0, 1.0 at 0.66, 0.8 at 1.
+    public var torqueCurve: [(rpm: Float, torque: Float)]
+    /// kg m².
+    public var inertia: Float = 0.5
+    public var angularDamping: Float = 0.2
 
-    public init(maxTorque: Float = 500, rpm: ClosedRange<Float> = 1000...6000) {
+    public init(
+        maxTorque: Float = 500,
+        rpm: ClosedRange<Float> = 1000...6000,
+        torqueCurve: [(rpm: Float, torque: Float)] = [],
+        inertia: Float = 0.5,
+        angularDamping: Float = 0.2
+    ) {
         self.maxTorque = maxTorque
         self.rpm = rpm
+        self.torqueCurve = torqueCurve
+        self.inertia = inertia
+        self.angularDamping = angularDamping
     }
 }
 
@@ -239,9 +254,18 @@ public class WheeledVehicle: Vehicle {
         JPH_VehicleEngine_GetCurrentRPM(JPH_WheeledVehicleController_GetEngine(controller))
     }
 
+    public var transmission: Transmission {
+        Transmission(handle: JPH_WheeledVehicleController_GetTransmission(controller)!, vehicle: self)
+    }
+
     /// 0 is neutral, negative is reverse.
     public var currentGear: Int {
-        Int(JPH_VehicleTransmission_GetCurrentGear(JPH_WheeledVehicleController_GetTransmission(controller)))
+        transmission.currentGear
+    }
+
+    /// Average rotation speed of the driven wheels as seen from the clutch, in RPM.
+    public var wheelSpeedAtClutch: Float {
+        JPH_WheeledVehicleController_GetWheelSpeedAtClutch(controller)
     }
 }
 
@@ -255,12 +279,44 @@ extension PhysicsWorld {
         wheels: [WheeledVehicleWheel],
         drivenWheels: [(left: Int, right: Int)],
         engine: EngineSettings = EngineSettings(),
+        transmission: TransmissionSettings = TransmissionSettings(),
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1],
         maxPitchRollAngle: Float = .pi
     ) -> WheeledVehicle {
-        precondition(drivenWheels.allSatisfy { wheels.indices.contains($0.left) && wheels.indices.contains($0.right) }, "Driven wheel index out of range")
-        let controllerSettings = makeWheeledControllerSettings(drivenWheels: drivenWheels, engine: engine)
+        addWheeledVehicle(
+            body: body,
+            wheels: wheels,
+            differentials: drivenWheels.map { DifferentialSettings(leftWheel: $0.left, rightWheel: $0.right) },
+            engine: engine,
+            transmission: transmission,
+            up: up,
+            forward: forward,
+            maxPitchRollAngle: maxPitchRollAngle
+        )
+    }
+
+    /// Turns `body` into a wheeled vehicle with full control over the differentials. Differentials
+    /// without an `engineTorqueRatio` share what the others leave evenly. `differentialLimitedSlipRatio`
+    /// limits the speed difference between differentials (`.infinity` for none).
+    @discardableResult
+    public func addWheeledVehicle(
+        body: BodyID,
+        wheels: [WheeledVehicleWheel],
+        differentials: [DifferentialSettings],
+        differentialLimitedSlipRatio: Float = 1.4,
+        engine: EngineSettings = EngineSettings(),
+        transmission: TransmissionSettings = TransmissionSettings(),
+        up: SIMD3<Float> = [0, 1, 0],
+        forward: SIMD3<Float> = [0, 0, 1],
+        maxPitchRollAngle: Float = .pi
+    ) -> WheeledVehicle {
+        precondition(
+            differentials.allSatisfy { wheels.indices.contains($0.leftWheel) && wheels.indices.contains($0.rightWheel) },
+            "Differential wheel index out of range"
+        )
+        let controllerSettings = makeWheeledControllerSettings(differentials: differentials, engine: engine, transmission: transmission)
+        JPH_WheeledVehicleControllerSettings_SetDifferentialLimitedSlipRatio(controllerSettings, differentialLimitedSlipRatio)
         return addVehicle(
             body: body,
             wheelCount: wheels.count,
@@ -273,41 +329,50 @@ extension PhysicsWorld {
         )
     }
 
-    /// A wheel index of -1 in `drivenWheels` means "no wheel" (used for motorcycles).
+    /// A wheel index of -1 in a differential means "no wheel" (used for motorcycles).
     func makeWheeledControllerSettings(
-        drivenWheels: [(left: Int, right: Int)],
+        differentials: [DifferentialSettings],
         engine: EngineSettings,
+        transmission: TransmissionSettings,
         create: () -> OpaquePointer = { JPH_WheeledVehicleControllerSettings_Create()! }
     ) -> OpaquePointer {
         let settings = create()
         engine.apply(to: settings)
-        JPH_WheeledVehicleControllerSettings_SetDifferentialsCount(settings, 0)
-        for pair in drivenWheels {
-            JPH_WheeledVehicleControllerSettings_AddDifferential(settings, Int32(pair.left), Int32(pair.right))
-        }
-        // AddDifferential leaves each at the default share; split the engine torque evenly.
-        for index in 0..<drivenWheels.count {
-            var differential = JPH_VehicleDifferentialSettings()
-            JPH_WheeledVehicleControllerSettings_GetDifferential(settings, UInt32(index), &differential)
-            differential.engineTorqueRatio = 1 / Float(drivenWheels.count)
-            JPH_WheeledVehicleControllerSettings_SetDifferential(settings, UInt32(index), &differential)
-        }
+        transmission.apply { JPH_WheeledVehicleControllerSettings_SetTransmission(settings, $0) }
+        let jph = DifferentialSettings.joltSettings(for: differentials)
+        JPH_WheeledVehicleControllerSettings_SetDifferentials(settings, jph, UInt32(jph.count))
         return settings
     }
 }
 
 extension EngineSettings {
-    /// Applies to wheeled (and motorcycle) controller settings, keeping Jolt's default torque curve.
+    /// Applies to wheeled (and motorcycle) controller settings.
     func apply(to controllerSettings: OpaquePointer) {
         var engine = JPH_VehicleEngineSettings()
         JPH_WheeledVehicleControllerSettings_GetEngine(controllerSettings, &engine)
-        update(&engine)
-        JPH_WheeledVehicleControllerSettings_SetEngine(controllerSettings, &engine)
+        withJoltSettings(startingFrom: engine) { JPH_WheeledVehicleControllerSettings_SetEngine(controllerSettings, $0) }
     }
 
-    func update(_ engine: inout JPH_VehicleEngineSettings) {
+    /// `base` comes from the controller settings; its curve pointer points into them and is kept
+    /// when `torqueCurve` is empty. Jolt copies the curve when the settings are set.
+    func withJoltSettings(startingFrom base: JPH_VehicleEngineSettings, _ body: (UnsafePointer<JPH_VehicleEngineSettings>) -> Void) {
+        var engine = base
         engine.maxTorque = maxTorque
         engine.minRPM = rpm.lowerBound
         engine.maxRPM = rpm.upperBound
+        engine.inertia = inertia
+        engine.angularDamping = angularDamping
+        guard !torqueCurve.isEmpty else {
+            body(&engine)
+            return
+        }
+        let curve = JPH_LinearCurve_Create()!
+        defer { JPH_LinearCurve_Destroy(curve) }
+        for point in torqueCurve {
+            JPH_LinearCurve_AddPoint(curve, point.rpm, point.torque)
+        }
+        JPH_LinearCurve_Sort(curve)
+        engine.normalizedTorque = curve
+        body(&engine)
     }
 }
