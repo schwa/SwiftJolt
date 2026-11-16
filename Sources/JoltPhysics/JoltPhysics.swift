@@ -452,6 +452,11 @@ public final class PhysicsWorld {
 
     // MARK: - Queries
 
+    /// False for bodies that exist but are not in the simulation, e.g. a ragdoll before `addToWorld()`.
+    public func isAdded(_ body: BodyID) -> Bool {
+        JPH_BodyInterface_IsAdded(bodyInterface, body.rawValue)
+    }
+
     public func position(of body: BodyID) -> SIMD3<Float> {
         var result = JPH_RVec3()
         JPH_BodyInterface_GetPosition(bodyInterface, body.rawValue, &result)

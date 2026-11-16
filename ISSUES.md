@@ -856,13 +856,14 @@ Wrap JPH_RagdollSettings: create from skeleton, per-part shape/position/rotation
 ## 56: Wrap Ragdoll instances
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:m, subtask, area:ragdolls
 depends: 54, 55
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:25:06Z
+closed: 2026-11-16T20:25:06Z
 +++
 
 Wrap JPH_Ragdoll: create from settings, AddToPhysicsSystem/remove, get/set pose, DriveToPoseUsingMotors/Kinematics. Accept: a ragdoll falls and collapses under gravity in a test. Part of #35.

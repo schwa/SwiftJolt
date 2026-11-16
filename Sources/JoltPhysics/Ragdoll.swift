@@ -138,3 +138,124 @@ public final class RagdollSettings {
         precondition((0..<partCount).contains(index), "Part index out of range")
     }
 }
+
+/// A ragdoll's bodies and joints in a world. Created by `PhysicsWorld.createRagdoll`; not
+/// simulated until `addToWorld()`. Removes and destroys its bodies when released.
+public final class Ragdoll {
+    public let settings: RagdollSettings
+    /// The ragdoll's bodies live in this world, so it must outlive the ragdoll.
+    public let world: PhysicsWorld
+    let handle: OpaquePointer
+    public private(set) var isInWorld = false
+
+    init(settings: RagdollSettings, world: PhysicsWorld, collisionGroup: UInt32, userData: UInt64) {
+        precondition(settings.engine === world.engine, "Ragdoll settings belong to a different engine")
+        self.settings = settings
+        self.world = world
+        // DriveToPoseUsingMotors reads these tables and crashes if they are empty.
+        settings.calculateBodyIndexToConstraintIndex()
+        settings.calculateConstraintIndexToBodyIndexPair()
+        handle = JPH_RagdollSettings_CreateRagdoll(settings.handle, world.system, collisionGroup, userData)
+    }
+
+    deinit {
+        removeFromWorld()
+        JPH_Ragdoll_Destroy(handle)
+    }
+
+    public func addToWorld(activate: Bool = true) {
+        guard !isInWorld else {
+            return
+        }
+        JPH_Ragdoll_AddToPhysicsSystem(handle, activate ? JPH_Activation_Activate : JPH_Activation_DontActivate, true)
+        isInWorld = true
+    }
+
+    public func removeFromWorld() {
+        guard isInWorld else {
+            return
+        }
+        JPH_Ragdoll_RemoveFromPhysicsSystem(handle, true)
+        isInWorld = false
+    }
+
+    public func activate() {
+        JPH_Ragdoll_Activate(handle, true)
+    }
+
+    public var isActive: Bool {
+        JPH_Ragdoll_IsActive(handle, true)
+    }
+
+    /// Clears cached constraint impulses, e.g. after teleporting the ragdoll.
+    public func resetWarmStart() {
+        JPH_Ragdoll_ResetWarmStart(handle)
+    }
+
+    public var bodyCount: Int {
+        Int(JPH_Ragdoll_GetBodyCount(handle))
+    }
+
+    /// Bodies in part order, matching the skeleton joints.
+    public var bodyIDs: [BodyID] {
+        (0..<bodyCount).map { BodyID(rawValue: JPH_Ragdoll_GetBodyID(handle, Int32($0))) }
+    }
+
+    public var constraintCount: Int {
+        Int(JPH_Ragdoll_GetConstraintCount(handle))
+    }
+
+    public var rootTransform: (position: SIMD3<Float>, rotation: simd_quatf) {
+        var position = JPH_RVec3()
+        var rotation = JPH_Quat()
+        JPH_Ragdoll_GetRootTransform(handle, &position, &rotation, true)
+        return (position.simd, rotation.simd)
+    }
+
+    /// Teleports the bodies to a pose. The pose's joint matrices must be up to date.
+    public func setPose(_ pose: SkeletonPose) {
+        checkPose(pose)
+        JPH_Ragdoll_SetPose(handle, pose.handle, true)
+    }
+
+    public func setPose(rootOffset: SIMD3<Float>, jointMatrices: [simd_float4x4]) {
+        precondition(jointMatrices.count == bodyCount, "Expected \(bodyCount) joint matrices")
+        var offset = JPH_RVec3(rootOffset)
+        JPH_Ragdoll_SetPose2(handle, &offset, jointMatrices.map(JPH_Mat4.init), true)
+    }
+
+    /// Writes the bodies' current transforms into `pose`.
+    public func getPose(into pose: SkeletonPose) {
+        checkPose(pose)
+        JPH_Ragdoll_GetPose(handle, pose.handle, true)
+    }
+
+    public func currentPose() -> SkeletonPose {
+        let pose = SkeletonPose(skeleton: settings.skeleton)
+        getPose(into: pose)
+        return pose
+    }
+
+    /// Sets joint motor targets toward `pose`. Joints without motors ignore this.
+    public func driveToPoseUsingMotors(_ pose: SkeletonPose) {
+        checkPose(pose)
+        JPH_Ragdoll_DriveToPoseUsingMotors(handle, pose.handle)
+    }
+
+    /// Sets body velocities so they reach `pose` after `deltaTime`. Use with kinematic parts.
+    public func driveToPoseUsingKinematics(_ pose: SkeletonPose, deltaTime: Float) {
+        checkPose(pose)
+        JPH_Ragdoll_DriveToPoseUsingKinematics(handle, pose.handle, deltaTime, true)
+    }
+
+    private func checkPose(_ pose: SkeletonPose) {
+        precondition(pose.jointCount == bodyCount, "Pose joint count does not match the ragdoll")
+    }
+}
+
+extension PhysicsWorld {
+    /// Creates a ragdoll's bodies and joints. Call `addToWorld()` on the result to simulate it.
+    public func createRagdoll(_ settings: RagdollSettings, collisionGroup: UInt32 = 0, userData: UInt64 = 0) -> Ragdoll {
+        Ragdoll(settings: settings, world: self, collisionGroup: collisionGroup, userData: userData)
+    }
+}
