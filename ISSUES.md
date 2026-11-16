@@ -1439,12 +1439,13 @@ Unwrapped joltc API:
 ## 76: Queries can't be filtered by body, shape or layer
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:queries, effort:m
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:09:18Z
+closed: 2026-11-16T23:09:18Z
 +++
 
 Ray casts, shape casts and collide queries can't take a BodyFilter, ShapeFilter, ObjectLayerFilter or BroadPhaseLayerFilter. For example, a ray cast can't ignore the caster's own body.
@@ -1468,6 +1469,8 @@ Unwrapped joltc API:
 - `JPH_SimShapeFilter_Destroy`
 - `JPH_SimShapeFilter_SetProcs`
 - `JPH_PhysicsSystem_SetSimShapeFilter`
+
+- `2026-11-16T23:09:18Z`: Added QueryFilter (layers, excludedBodies, shouldInclude predicate) as a filter: parameter on castRay, castRayAll, castShape, castShapeAll, collideShape and bodies(containing:). Not wrapped: ShapeFilter (sub-shape level), BroadPhaseLayerFilter (object-layer filter covers it), and filters on the coarse PhysicsWorld.broadPhase queries; SimShapeFilter (simulation-time) also not done.
 
 ---
 

@@ -733,19 +733,22 @@ public final class PhysicsWorld {
     // MARK: - Ray Casting
 
     /// Returns the closest body hit by the ray. `direction` sets both the direction and the length of the ray.
-    public func castRay(origin: SIMD3<Float>, direction: SIMD3<Float>) -> RayHit? {
+    public func castRay(origin: SIMD3<Float>, direction: SIMD3<Float>, filter: QueryFilter = .all) -> RayHit? {
         var o = JPH_RVec3(origin)
         var d = JPH_Vec3(direction)
         var result = JPH_RayCastResult()
         let query = narrowPhaseQuery
-        guard JPH_NarrowPhaseQuery_CastRay(query, &o, &d, &result, nil, nil, nil) else {
+        let hit = filter.withJoltFilters { objectLayerFilter, bodyFilter in
+            JPH_NarrowPhaseQuery_CastRay(query, &o, &d, &result, nil, objectLayerFilter, bodyFilter)
+        }
+        guard hit else {
             return nil
         }
         return RayHit(result, origin: origin, direction: direction)
     }
 
     /// Returns every body hit by the ray, sorted from nearest to farthest.
-    public func castRayAll(origin: SIMD3<Float>, direction: SIMD3<Float>) -> [RayHit] {
+    public func castRayAll(origin: SIMD3<Float>, direction: SIMD3<Float>, filter: QueryFilter = .all) -> [RayHit] {
         var o = JPH_RVec3(origin)
         var d = JPH_Vec3(direction)
         var settings = JPH_RayCastSettings(
@@ -755,17 +758,19 @@ public final class PhysicsWorld {
         )
         var results: [JPH_RayCastResult] = []
         let query = narrowPhaseQuery
-        withUnsafeMutablePointer(to: &results) { resultsPointer in
-            _ = JPH_NarrowPhaseQuery_CastRay3(
-                query, &o, &d, &settings, JPH_CollisionCollectorType_AllHitSorted,
-                { context, result in
-                    guard let context, let result else {
-                        return
-                    }
-                    context.assumingMemoryBound(to: [JPH_RayCastResult].self).pointee.append(result.pointee)
-                },
-                resultsPointer, nil, nil, nil, nil
-            )
+        filter.withJoltFilters { objectLayerFilter, bodyFilter in
+            withUnsafeMutablePointer(to: &results) { resultsPointer in
+                _ = JPH_NarrowPhaseQuery_CastRay3(
+                    query, &o, &d, &settings, JPH_CollisionCollectorType_AllHitSorted,
+                    { context, result in
+                        guard let context, let result else {
+                            return
+                        }
+                        context.assumingMemoryBound(to: [JPH_RayCastResult].self).pointee.append(result.pointee)
+                    },
+                    resultsPointer, nil, objectLayerFilter, bodyFilter, nil
+                )
+            }
         }
         return results.map { RayHit($0, origin: origin, direction: direction) }
     }
@@ -777,9 +782,10 @@ public final class PhysicsWorld {
         _ shape: Shape,
         position: SIMD3<Float>,
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
-        direction: SIMD3<Float>
+        direction: SIMD3<Float>,
+        filter: QueryFilter = .all
     ) -> ShapeHit? {
-        castShape(shape, position: position, rotation: rotation, direction: direction, collector: JPH_CollisionCollectorType_ClosestHit).first
+        castShape(shape, position: position, rotation: rotation, direction: direction, filter: filter, collector: JPH_CollisionCollectorType_ClosestHit).first
     }
 
     /// Sweeps `shape` along `direction` and returns every hit, sorted from nearest to farthest.
@@ -787,9 +793,10 @@ public final class PhysicsWorld {
         _ shape: Shape,
         position: SIMD3<Float>,
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
-        direction: SIMD3<Float>
+        direction: SIMD3<Float>,
+        filter: QueryFilter = .all
     ) -> [ShapeHit] {
-        castShape(shape, position: position, rotation: rotation, direction: direction, collector: JPH_CollisionCollectorType_AllHitSorted)
+        castShape(shape, position: position, rotation: rotation, direction: direction, filter: filter, collector: JPH_CollisionCollectorType_AllHitSorted)
     }
 
     private func castShape(
@@ -797,6 +804,7 @@ public final class PhysicsWorld {
         position: SIMD3<Float>,
         rotation: simd_quatf,
         direction: SIMD3<Float>,
+        filter: QueryFilter,
         collector: JPH_CollisionCollectorType
     ) -> [ShapeHit] {
         let shapeHandle = shape.createHandle()
@@ -810,17 +818,19 @@ public final class PhysicsWorld {
         JPH_ShapeCastSettings_Init(&settings)
         var results: [JPH_ShapeCastResult] = []
         let query = narrowPhaseQuery
-        withUnsafeMutablePointer(to: &results) { resultsPointer in
-            _ = JPH_NarrowPhaseQuery_CastShape2(
-                query, shapeHandle, &jphTransform, &jphDirection, &settings, &baseOffset, collector,
-                { context, result in
-                    guard let context, let result else {
-                        return
-                    }
-                    context.assumingMemoryBound(to: [JPH_ShapeCastResult].self).pointee.append(result.pointee)
-                },
-                resultsPointer, nil, nil, nil, nil
-            )
+        filter.withJoltFilters { objectLayerFilter, bodyFilter in
+            withUnsafeMutablePointer(to: &results) { resultsPointer in
+                _ = JPH_NarrowPhaseQuery_CastShape2(
+                    query, shapeHandle, &jphTransform, &jphDirection, &settings, &baseOffset, collector,
+                    { context, result in
+                        guard let context, let result else {
+                            return
+                        }
+                        context.assumingMemoryBound(to: [JPH_ShapeCastResult].self).pointee.append(result.pointee)
+                    },
+                    resultsPointer, nil, objectLayerFilter, bodyFilter, nil
+                )
+            }
         }
         return results.map(ShapeHit.init)
     }
@@ -833,7 +843,8 @@ public final class PhysicsWorld {
         _ shape: Shape,
         position: SIMD3<Float>,
         rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1),
-        maxSeparationDistance: Float = 0
+        maxSeparationDistance: Float = 0,
+        filter: QueryFilter = .all
     ) -> [ShapeCollision] {
         let shapeHandle = shape.createHandle()
         defer { JPH_Shape_Destroy(shapeHandle) }
@@ -850,17 +861,19 @@ public final class PhysicsWorld {
         settings.maxSeparationDistance = maxSeparationDistance
         var results: [JPH_CollideShapeResult] = []
         let query = narrowPhaseQuery
-        withUnsafeMutablePointer(to: &results) { resultsPointer in
-            _ = JPH_NarrowPhaseQuery_CollideShape2(
-                query, shapeHandle, &scale, &jphTransform, &settings, &baseOffset, JPH_CollisionCollectorType_AllHit,
-                { context, result in
-                    guard let context, let result else {
-                        return
-                    }
-                    context.assumingMemoryBound(to: [JPH_CollideShapeResult].self).pointee.append(result.pointee)
-                },
-                resultsPointer, nil, nil, nil, nil
-            )
+        filter.withJoltFilters { objectLayerFilter, bodyFilter in
+            withUnsafeMutablePointer(to: &results) { resultsPointer in
+                _ = JPH_NarrowPhaseQuery_CollideShape2(
+                    query, shapeHandle, &scale, &jphTransform, &settings, &baseOffset, JPH_CollisionCollectorType_AllHit,
+                    { context, result in
+                        guard let context, let result else {
+                            return
+                        }
+                        context.assumingMemoryBound(to: [JPH_CollideShapeResult].self).pointee.append(result.pointee)
+                    },
+                    resultsPointer, nil, objectLayerFilter, bodyFilter, nil
+                )
+            }
         }
         return results.map(ShapeCollision.init)
     }
@@ -868,21 +881,23 @@ public final class PhysicsWorld {
     // MARK: - Point Queries
 
     /// Returns every body whose shape contains `point`.
-    public func bodies(containing point: SIMD3<Float>) -> [BodyID] {
+    public func bodies(containing point: SIMD3<Float>, filter: QueryFilter = .all) -> [BodyID] {
         var p = JPH_RVec3(point)
         var results: [BodyID] = []
         let query = narrowPhaseQuery
-        withUnsafeMutablePointer(to: &results) { resultsPointer in
-            _ = JPH_NarrowPhaseQuery_CollidePoint2(
-                query, &p, JPH_CollisionCollectorType_AllHit,
-                { context, result in
-                    guard let context, let result else {
-                        return
-                    }
-                    context.assumingMemoryBound(to: [BodyID].self).pointee.append(BodyID(rawValue: result.pointee.bodyID))
-                },
-                resultsPointer, nil, nil, nil, nil
-            )
+        filter.withJoltFilters { objectLayerFilter, bodyFilter in
+            withUnsafeMutablePointer(to: &results) { resultsPointer in
+                _ = JPH_NarrowPhaseQuery_CollidePoint2(
+                    query, &p, JPH_CollisionCollectorType_AllHit,
+                    { context, result in
+                        guard let context, let result else {
+                            return
+                        }
+                        context.assumingMemoryBound(to: [BodyID].self).pointee.append(BodyID(rawValue: result.pointee.bodyID))
+                    },
+                    resultsPointer, nil, objectLayerFilter, bodyFilter, nil
+                )
+            }
         }
         return results
     }
