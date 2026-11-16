@@ -1501,6 +1501,8 @@ Unwrapped joltc API:
 - `JPH_RayCast_GetPointOnRay`
 - `JPH_RRayCast_GetPointOnRay`
 
+- `2026-11-16T23:38:28Z`: Checked each listed function. Ray, shape-cast, shape-collide and point queries are already wrapped through the collector-type variants (CastRay/CastRay3, CastShape2, CollideShape2, CollidePoint2, BroadPhaseQuery_CastRay2), and RayHit already has position, so GetPointOnRay adds nothing. The only new capability left is the callback-collector variants, where the callback returns an early-out fraction, which allows custom or early-terminating collection. Punting: exposing that needs an API design decision. Unblocker: should Swift get a visitor-style query (e.g. castRay(..., visit: (RayHit) -> Continue/Stop)) or an .anyHit mode, or should this issue be closed as covered?
+
 ---
 
 ## 78: Decorator shapes (scaled, rotated/translated, offset COM) are not available
