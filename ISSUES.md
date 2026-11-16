@@ -1793,12 +1793,13 @@ Unwrapped joltc API:
 ## 85: Contact manifold and collision dispatch details are incomplete
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:43:32Z
+closed: 2026-11-16T23:43:32Z
 +++
 
 Some ContactManifold accessors and CollisionDispatch functions are not exposed in the contact listener API.
@@ -1809,6 +1810,8 @@ Unwrapped joltc API:
 - `JPH_CollisionDispatch_CollideShapeVsShape`
 - `JPH_ContactManifold_GetSubShapeID1`
 - `JPH_ContactManifold_GetSubShapeID2`
+
+- `2026-11-16T23:43:32Z`: Added Contact.subShapeID1/2 (new public SubShapeID), Shape.collide(with:...) and Shape.cast(...against:...) via CollisionDispatch. CastShapeVsShapeLocalSpace not wrapped separately; the world-space variant covers the same capability.
 
 ---
 

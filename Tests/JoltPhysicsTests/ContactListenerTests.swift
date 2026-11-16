@@ -139,6 +139,23 @@ extension JoltTests {
             #expect(world.position(of: ball).y < -1)
         }
 
+        @Test func contactsIdentifyCompoundChildren() throws {
+            let listener = RecordingListener()
+            let world = try makeWorld()
+            world.contactListener = listener
+            let floor = world.addBody(.compound([
+                CompoundChild(.box(halfExtents: [2, 0.5, 2]), position: [-3, -0.5, 0]),
+                CompoundChild(.box(halfExtents: [2, 0.5, 2]), position: [3, -0.5, 0])
+            ]), motionType: .static)
+            world.addBody(.sphere(radius: 0.5), position: [-3, 1, 0])
+            world.addBody(.sphere(radius: 0.5), position: [3, 1, 0])
+            simulate(world, seconds: 1)
+            let floorParts = listener.events.withLock { events in
+                Set(events.added.map { $0.body1 == floor ? $0.subShapeID1 : $0.subShapeID2 })
+            }
+            #expect(floorParts.count == 2)
+        }
+
         @Test func clearingListenerStopsEvents() throws {
             let listener = RecordingListener()
             let (world, _, _) = try makeScene(listener: listener)

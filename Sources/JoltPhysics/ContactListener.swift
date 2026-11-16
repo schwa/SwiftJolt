@@ -17,6 +17,16 @@ public enum ContactValidation: Sendable {
     }
 }
 
+/// Identifies a part of a shape, such as a compound child or mesh triangle. Only meaningful for
+/// the shape it came from.
+public struct SubShapeID: Sendable, Hashable {
+    public var rawValue: UInt32
+
+    public init(rawValue: UInt32) {
+        self.rawValue = rawValue
+    }
+}
+
 public struct Contact: Sendable {
     public var body1: BodyID
     public var body2: BodyID
@@ -27,6 +37,10 @@ public struct Contact: Sendable {
     public var pointsOn1: [SIMD3<Float>]
     /// World-space contact points on body2.
     public var pointsOn2: [SIMD3<Float>]
+    /// Which part of body1's shape is touching.
+    public var subShapeID1: SubShapeID
+    /// Which part of body2's shape is touching.
+    public var subShapeID2: SubShapeID
     var callbackScope: ContactCallbackScope?
 
     /// Predicts the velocities and impulses that solving this contact will produce, for example
@@ -198,6 +212,8 @@ extension Contact {
             penetrationDepth: JPH_ContactManifold_GetPenetrationDepth(manifold),
             pointsOn1: pointsOn1,
             pointsOn2: pointsOn2,
+            subShapeID1: SubShapeID(rawValue: JPH_ContactManifold_GetSubShapeID1(manifold)),
+            subShapeID2: SubShapeID(rawValue: JPH_ContactManifold_GetSubShapeID2(manifold)),
             callbackScope: ContactCallbackScope(body1: body1, body2: body2, manifold: manifold)
         )
     }
