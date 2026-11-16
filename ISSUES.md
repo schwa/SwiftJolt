@@ -1922,12 +1922,13 @@ Unwrapped joltc API:
 ## 89: Character (rigid) and CharacterBase API is incomplete
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:characters, effort:s
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:45:45Z
+closed: 2026-11-16T23:45:45Z
 +++
 
 Parts of Character and CharacterBase are not wrapped.

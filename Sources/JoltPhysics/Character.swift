@@ -84,6 +84,27 @@ public class CharacterBase {
         JPH_CharacterBase_GetGroundVelocity(handle, &result)
         return result.simd
     }
+
+    /// Which part of the ground body's shape the character stands on.
+    public var groundSubShape: SubShapeID {
+        SubShapeID(rawValue: JPH_CharacterBase_GetGroundSubShapeId(handle))
+    }
+
+    /// User data of the ground body.
+    public var groundUserData: UInt64 {
+        JPH_CharacterBase_GetGroundUserData(handle)
+    }
+
+    /// Material of the ground under the character, or nil when in the air.
+    public var groundMaterial: PhysicsMaterial? {
+        JPH_CharacterBase_GetGroundMaterial(handle).map(PhysicsMaterial.init)
+    }
+
+    /// True if ground with this surface normal is steeper than `maxSlopeAngle`.
+    public func isSlopeTooSteep(normal: SIMD3<Float>) -> Bool {
+        var value = JPH_Vec3(normal)
+        return JPH_CharacterBase_IsSlopeTooSteep(handle, &value)
+    }
 }
 
 /// A character controller backed by a rigid body. It collides like a normal dynamic body, never
@@ -139,6 +160,61 @@ public final class Character: CharacterBase {
     public func addImpulse(_ impulse: SIMD3<Float>) {
         var value = JPH_Vec3(impulse)
         JPH_Character_AddImpulse(handle, &value, true)
+    }
+
+    public func addLinearVelocity(_ velocity: SIMD3<Float>) {
+        var value = JPH_Vec3(velocity)
+        JPH_Character_AddLinearVelocity(handle, &value, true)
+    }
+
+    public func setVelocity(linear: SIMD3<Float>, angular: SIMD3<Float>) {
+        var jphLinear = JPH_Vec3(linear)
+        var jphAngular = JPH_Vec3(angular)
+        JPH_Character_SetLinearAndAngularVelocity(handle, &jphLinear, &jphAngular, true)
+    }
+
+    /// Wakes the character's body.
+    public func activate() {
+        JPH_Character_Activate(handle, true)
+    }
+
+    public var positionAndRotation: (position: SIMD3<Float>, rotation: simd_quatf) {
+        var jphPosition = JPH_RVec3()
+        var jphRotation = JPH_Quat()
+        JPH_Character_GetPositionAndRotation(handle, &jphPosition, &jphRotation, true)
+        return (jphPosition.simd, jphRotation.simd)
+    }
+
+    public func setPosition(_ position: SIMD3<Float>, rotation: simd_quatf) {
+        var jphPosition = JPH_RVec3(position)
+        var jphRotation = JPH_Quat(rotation)
+        JPH_Character_SetPositionAndRotation(handle, &jphPosition, &jphRotation, JPH_Activation_Activate, true)
+    }
+
+    public var centerOfMassPosition: SIMD3<Float> {
+        var result = JPH_RVec3()
+        JPH_Character_GetCenterOfMassPosition(handle, &result, true)
+        return result.simd
+    }
+
+    public var worldTransform: simd_float4x4 {
+        var result = JPH_RMat4()
+        JPH_Character_GetWorldTransform(handle, &result, true)
+        return result.simd
+    }
+
+    public var layer: ObjectLayer {
+        get { ObjectLayer(rawValue: JPH_Character_GetLayer(handle)) }
+        set { JPH_Character_SetLayer(handle, newValue.rawValue, true) }
+    }
+
+    /// Replaces the collision shape, e.g. to crouch. With `maxPenetrationDepth` below infinity, Jolt
+    /// checks the new shape against the world first and keeps the old one if it would penetrate
+    /// deeper than that.
+    public func setShape(_ shape: Shape, maxPenetrationDepth: Float = .infinity) {
+        let shapeHandle = shape.createHandle()
+        defer { JPH_Shape_Destroy(shapeHandle) }
+        JPH_Character_SetShape(handle, shapeHandle, maxPenetrationDepth, true)
     }
 
     func postSimulation() {

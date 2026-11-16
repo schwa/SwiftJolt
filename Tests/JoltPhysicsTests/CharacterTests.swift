@@ -28,6 +28,52 @@ extension JoltTests {
             #expect(simd_distance(character.groundNormal, [0, 1, 0]) < 0.01)
         }
 
+        @Test func groundDetailsDescribeFloor() throws {
+            let world = try makeWorld()
+            let stone = PhysicsMaterial(name: "stone")
+            let floor = world.addBody(.plane(material: stone), motionType: .static)
+            world.setUserData(of: floor, to: 42)
+            let character = world.addCharacter(shape: capsule, position: [0, 1, 0])
+            simulate(world, seconds: 1)
+            #expect(character.groundBody == floor)
+            #expect(character.groundUserData == 42)
+            #expect(character.groundMaterial == stone)
+            #expect(world.physicsMaterial(of: floor, at: character.groundSubShape) == stone)
+            #expect(!character.isSlopeTooSteep(normal: [0, 1, 0]))
+            #expect(character.isSlopeTooSteep(normal: simd_normalize([1, 0.2, 0])))
+        }
+
+        @Test func transformAndVelocityAccessors() throws {
+            let world = try makeWorld(gravity: .zero)
+            let character = world.addCharacter(shape: capsule, position: [1, 2, 3])
+            let turn = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+            character.setPosition([4, 5, 6], rotation: turn)
+            let pose = character.positionAndRotation
+            #expect(simd_distance(pose.position, [4, 5, 6]) < 1e-4)
+            #expect(abs(simd_dot(pose.rotation.vector, turn.vector)) > 0.9999)
+            #expect(simd_distance(SIMD3(character.worldTransform.columns.3.x, character.worldTransform.columns.3.y, character.worldTransform.columns.3.z), [4, 5, 6]) < 1e-4)
+            #expect(simd_distance(character.centerOfMassPosition, [4, 5, 6]) < 1e-4)
+
+            character.setVelocity(linear: [1, 0, 0], angular: .zero)
+            character.addLinearVelocity([0, 0, 2])
+            #expect(simd_distance(character.linearVelocity, [1, 0, 2]) < 1e-4)
+            character.activate()
+            #expect(world.isActive(character.body))
+
+            character.layer = .nonMoving
+            #expect(character.layer == .nonMoving)
+        }
+
+        @Test func setShapeChangesHeight() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let character = world.addCharacter(shape: capsule, position: [0, 0.9, 0])
+            simulate(world, seconds: 0.5)
+            character.setShape(.sphere(radius: 0.4))
+            #expect(world.castRay(origin: [0, 1.7, 0], direction: [0, -0.2, 0])?.body != character.body)
+            #expect(world.castRay(origin: [0, 1.5, 0], direction: [1, 0, 0]) == nil)
+            #expect(world.castRay(origin: [-2, 0.9, 0], direction: [4, 0, 0])?.body == character.body)
+        }
+
         @Test func characterMovesWhenVelocitySet() throws {
             let (world, _) = try makeWorldWithFloor()
             let character = world.addCharacter(shape: capsule, position: [0, 0.9, 0])
