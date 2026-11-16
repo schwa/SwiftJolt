@@ -17,9 +17,11 @@ public enum SoftBodyBendType: Sendable {
 
 /// Rest-state geometry and constraints, shareable between soft body instances.
 public final class SoftBodySharedSettings {
+    public let engine: JoltEngine
     let handle: OpaquePointer
 
-    public init() {
+    public init(engine: JoltEngine) {
+        self.engine = engine
         handle = JPH_SoftBodySharedSettings_Create()
     }
 
