@@ -1826,12 +1826,13 @@ Unwrapped joltc API:
 ## 87: VirtualCharacter has no contact listener or character-vs-character collision
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:characters, effort:l
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:16:45Z
+closed: 2026-11-16T23:16:45Z
 +++
 
 VirtualCharacter has no way to receive contact callbacks (OnContactAdded, OnContactValidate, etc.), and virtual characters do not collide with each other.
@@ -1849,6 +1850,8 @@ Unwrapped joltc API:
 - `JPH_CharacterVirtual_HasCollidedWithCharacter`
 - `JPH_CharacterVirtual_SetCharacterVsCharacterCollision`
 - `JPH_CharacterVirtual_SetListener`
+
+- `2026-11-16T23:16:45Z`: Added CharacterContactListener (adjust body velocity, validate, added/persisted/removed for bodies and characters, contact solve) via VirtualCharacter.contactListener; VirtualCharacter.collidesWithCharacters using a per-world CharacterVsCharacterCollisionSimple; VirtualCharacter.id (CharacterID), hasCollided(with: VirtualCharacter), start/finishTrackingContactChanges(). Not wrapped: custom CharacterVsCharacterCollision procs (the simple collection covers all characters in the world), contact material in solve callbacks.
 
 ---
 

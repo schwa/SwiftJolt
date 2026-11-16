@@ -333,6 +333,26 @@ public final class PhysicsWorld {
     var contactListenerHandle: OpaquePointer?
     var constraints: [ObjectIdentifier: Constraint] = [:]
     var characters: [WeakCharacter] = []
+    var virtualCharacters: [OpaquePointer: WeakVirtualCharacter] = [:]
+    // Created on first use; destroyed in deinit, after every character (they keep the world alive).
+    private var characterCollisions: (all: OpaquePointer, empty: OpaquePointer)?
+
+    var characterVsCharacterCollision: OpaquePointer {
+        makeCharacterCollisions().all
+    }
+
+    var emptyCharacterVsCharacterCollision: OpaquePointer {
+        makeCharacterCollisions().empty
+    }
+
+    private func makeCharacterCollisions() -> (all: OpaquePointer, empty: OpaquePointer) {
+        if let characterCollisions {
+            return characterCollisions
+        }
+        let collisions = (all: JPH_CharacterVsCharacterCollision_CreateSimple()!, empty: JPH_CharacterVsCharacterCollision_CreateSimple()!)
+        characterCollisions = collisions
+        return collisions
+    }
     // Soft bodies point at their shared settings, so keep them alive until the body goes.
     var softBodySettings: [BodyID: SoftBodySharedSettings] = [:]
     var activationListenerHandle: OpaquePointer?
@@ -415,6 +435,10 @@ public final class PhysicsWorld {
             JPH_PhysicsSystem_RemoveConstraint(system, constraint.handle)
         }
         removeAllStepListeners()
+        if let characterCollisions {
+            JPH_CharacterVsCharacterCollision_Destroy(characterCollisions.all)
+            JPH_CharacterVsCharacterCollision_Destroy(characterCollisions.empty)
+        }
         JPH_PhysicsSystem_Destroy(system)
         releaseContactListener()
         releaseActivationListener()

@@ -6,6 +6,32 @@ import simd
 /// for you: add it to `linearVelocity` yourself each frame. Create one with
 /// `PhysicsWorld.addVirtualCharacter`.
 public final class VirtualCharacter: CharacterBase {
+    var contactListenerHandle: OpaquePointer?
+    var contactListenerBox: Unmanaged<CharacterContactListenerBox>?
+
+    /// Receives this character's contact events. Held strongly.
+    public var contactListener: (any CharacterContactListener)? {
+        didSet { installContactListener() }
+    }
+
+    /// Collide with other virtual characters in the same world that also have this set.
+    public var collidesWithCharacters = false {
+        didSet { updateCharacterCollision(from: oldValue) }
+    }
+
+    deinit {
+        // The base class destroys the Jolt character after this.
+        if collidesWithCharacters {
+            JPH_CharacterVsCharacterCollisionSimple_RemoveCharacter(world.characterVsCharacterCollision, handle)
+        }
+        if let contactListenerHandle {
+            JPH_CharacterVirtual_SetListener(handle, nil)
+            JPH_CharacterContactListener_Destroy(contactListenerHandle)
+        }
+        contactListenerBox?.release()
+        world.virtualCharacters[handle] = nil
+    }
+
     public var userData: UInt64 {
         get { JPH_CharacterVirtual_GetUserData(handle) }
         set { JPH_CharacterVirtual_SetUserData(handle, newValue) }
@@ -310,6 +336,8 @@ extension PhysicsWorld {
         var jphPosition = JPH_RVec3(position)
         var jphRotation = JPH_Quat(rotation)
         let handle = JPH_CharacterVirtual_Create(&settings, &jphPosition, &jphRotation, 0, system)!
-        return VirtualCharacter(handle: handle, world: self)
+        let character = VirtualCharacter(handle: handle, world: self)
+        virtualCharacters[handle] = WeakVirtualCharacter(character)
+        return character
     }
 }
