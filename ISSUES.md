@@ -2412,3 +2412,25 @@ Unwrapped joltc API:
 - `JPH_BodyLockMultiRead_Destroy`
 
 ---
+
+## 102: Test suite crashes intermittently with SIGSEGV
+
++++
+status: new
+priority: high
+kind: bug
+labels: area:testing,effort:m
+created: 2026-11-16T23:04:53Z
++++
+
+Running the full test suite segfaults about 1 run in 20.
+
+Repro:
+1. Build tests (`xcb test`).
+2. Run the test bundle repeatedly with swiftpm-testing-helper (60 runs).
+
+Observed on the commit before the step listener work (c4beb3ea): 3 of 60 runs ended with `Segmentation fault: 11`. Also seen once via `xcb test`. The crash happened early, while many suites were running in parallel (constraint, character, vehicle, shape suites had just started). No crash report was written, and running under lldb did not reproduce it in 3 runs.
+
+Expected: suite passes every run.
+
+---
