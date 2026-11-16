@@ -2138,12 +2138,13 @@ Unwrapped joltc API:
 ## 93: Vehicle anti-roll bars and alternative wheel collision testers are missing
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:vehicles, effort:m
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:54:42Z
+closed: 2026-11-16T23:54:42Z
 +++
 
 Vehicles have no anti-roll bars, and wheels only use the cast-cylinder collision tester. Ray and cast-sphere testers are not available.
@@ -2154,6 +2155,8 @@ Unwrapped joltc API:
 - `JPH_VehicleCollisionTester_SetObjectLayer`
 - `JPH_VehicleCollisionTesterCastSphere_Create`
 - `JPH_VehicleCollisionTesterRay_Create`
+
+- `2026-11-16T23:54:42Z`: Added WheelCollisionTester (.ray / .castSphere / .castCylinder, with object layer and up) as a parameter on addWheeledVehicle / addMotorcycle / addTrackedVehicle and Vehicle.setWheelCollisionTester; added AntiRollBar on wheeled and tracked vehicles. Note: in testing a 50,000 Nm/rad bar on a 1500 kg car made it flip in a full-lock turn; 5,000 reduced roll as expected. The test uses 5,000. VehicleCollisionTester_GetObjectLayer is not wrapped (the layer is part of the Swift value).
 
 ---
 

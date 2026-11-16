@@ -9,7 +9,9 @@ extension JoltTests {
         func makeCar(
             differentials: [DifferentialSettings] = [DifferentialSettings(leftWheel: 0, rightWheel: 1)],
             engine: EngineSettings = EngineSettings(),
-            transmission: TransmissionSettings = TransmissionSettings()
+            transmission: TransmissionSettings = TransmissionSettings(),
+            antiRollBars: [AntiRollBar] = [],
+            collisionTester: WheelCollisionTester = .default
         ) throws -> (PhysicsWorld, body: BodyID, car: WheeledVehicle) {
             let world = try makeWorld()
             world.addBody(.box(halfExtents: [100, 0.5, 100]), position: [0, -0.5, 0], motionType: .static, friction: 1)
@@ -21,7 +23,10 @@ extension JoltTests {
                 WheeledVehicleWheel(WheelSettings(position: [-0.9, 0, -1.4])),
                 WheeledVehicleWheel(WheelSettings(position: [0.9, 0, -1.4]))
             ]
-            let car = world.addWheeledVehicle(body: body, wheels: wheels, differentials: differentials, engine: engine, transmission: transmission)
+            let car = world.addWheeledVehicle(
+                body: body, wheels: wheels, differentials: differentials, engine: engine, transmission: transmission,
+                antiRollBars: antiRollBars, collisionTester: collisionTester
+            )
             return (world, body, car)
         }
 
@@ -94,6 +99,46 @@ extension JoltTests {
             }
             // Body held above the ground by the suspension, not resting on it.
             #expect(world.position(of: body).y > 0.6)
+        }
+
+        @Test(arguments: [
+            WheelCollisionTester.ray(),
+            .castSphere(radius: 0.3),
+            .castCylinder(convexRadiusFraction: 0.5)
+        ])
+        func carSettlesWithEachCollisionTester(tester: WheelCollisionTester) throws {
+            let (world, body, car) = try makeCar(collisionTester: tester)
+            simulate(world, seconds: 2)
+            #expect((0..<4).allSatisfy { car.wheelState(at: $0).contactBody != nil })
+            #expect(world.position(of: body).y > 0.6)
+        }
+
+        @Test func collisionTesterLayerFiltersGround() throws {
+            // The floor is on .nonMoving, which does not collide with .nonMoving.
+            let (world, _, car) = try makeCar(collisionTester: .ray(objectLayer: .nonMoving))
+            simulate(world, seconds: 1)
+            #expect((0..<4).allSatisfy { car.wheelState(at: $0).contactBody == nil })
+            car.setWheelCollisionTester(.ray())
+            simulate(world, seconds: 1)
+            #expect((0..<4).allSatisfy { car.wheelState(at: $0).contactBody != nil })
+        }
+
+        @Test func antiRollBarsReduceRoll() throws {
+            func roll(antiRollBars: [AntiRollBar]) throws -> Float {
+                let (world, body, car) = try makeCar(antiRollBars: antiRollBars)
+                simulate(world, seconds: 1)
+                car.setDriverInput(forward: 1, right: 1)
+                var maxRoll: Float = 0
+                for _ in 0..<180 {
+                    world.update(deltaTime: 1.0 / 60.0)
+                    let right = world.rotation(of: body).act([1, 0, 0])
+                    maxRoll = max(maxRoll, abs(right.y))
+                }
+                return maxRoll
+            }
+            let soft = try roll(antiRollBars: [])
+            let stiff = try roll(antiRollBars: [AntiRollBar(leftWheel: 0, rightWheel: 1, stiffness: 5_000), AntiRollBar(leftWheel: 2, rightWheel: 3, stiffness: 5_000)])
+            #expect(stiff < soft * 0.8, "soft \(soft), stiff \(stiff)")
         }
 
         @Test func carDrivesForwardAndBrakes() throws {

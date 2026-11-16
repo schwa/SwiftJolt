@@ -52,7 +52,8 @@ extension PhysicsWorld {
         transmission: TransmissionSettings = TransmissionSettings(),
         maxLeanAngle: Float = .pi / 4,
         up: SIMD3<Float> = [0, 1, 0],
-        forward: SIMD3<Float> = [0, 0, 1]
+        forward: SIMD3<Float> = [0, 0, 1],
+        collisionTester: WheelCollisionTester = .default
     ) -> Motorcycle {
         let wheels = [front, rear]
         let rearOnly = DifferentialSettings(leftWheel: -1, rightWheel: 1)
@@ -69,7 +70,7 @@ extension PhysicsWorld {
             up: up,
             forward: forward,
             maxPitchRollAngle: .pi,
-            collisionTester: JPH_VehicleCollisionTesterCastCylinder_Create(ObjectLayer.moving.rawValue, 0.1)!
+            collisionTester: collisionTester
         )
     }
 }

@@ -67,6 +67,74 @@ public struct WheelState: Sendable {
     public var contactNormal: SIMD3<Float>
 }
 
+// MARK: - Wheel collision
+
+/// How a vehicle's wheels find the ground.
+public struct WheelCollisionTester: Sendable, Equatable {
+    public enum Kind: Sendable, Equatable {
+        /// A ray per wheel. Cheapest; wheels can drop into gaps narrower than the wheel.
+        /// Ground steeper than `maxSlopeAngle` (radians) is ignored.
+        case ray(maxSlopeAngle: Float)
+        /// A swept sphere per wheel.
+        case castSphere(radius: Float, maxSlopeAngle: Float)
+        /// A swept cylinder matching the wheel. Most accurate. `convexRadiusFraction` rounds its edges, in 0...1.
+        case castCylinder(convexRadiusFraction: Float)
+    }
+
+    public var kind: Kind
+    /// Wheels only collide with bodies that this layer collides with.
+    public var objectLayer: ObjectLayer
+    /// World up, used by the ray and sphere testers to measure slopes.
+    public var up: SIMD3<Float>
+
+    public init(_ kind: Kind, objectLayer: ObjectLayer = .moving, up: SIMD3<Float> = [0, 1, 0]) {
+        self.kind = kind
+        self.objectLayer = objectLayer
+        self.up = up
+    }
+
+    public static func ray(maxSlopeAngle: Float = 80 * .pi / 180, objectLayer: ObjectLayer = .moving) -> Self {
+        Self(.ray(maxSlopeAngle: maxSlopeAngle), objectLayer: objectLayer)
+    }
+
+    public static func castSphere(radius: Float, maxSlopeAngle: Float = 80 * .pi / 180, objectLayer: ObjectLayer = .moving) -> Self {
+        Self(.castSphere(radius: radius, maxSlopeAngle: maxSlopeAngle), objectLayer: objectLayer)
+    }
+
+    public static func castCylinder(convexRadiusFraction: Float = 0.1, objectLayer: ObjectLayer = .moving) -> Self {
+        Self(.castCylinder(convexRadiusFraction: convexRadiusFraction), objectLayer: objectLayer)
+    }
+
+    public static let `default` = castCylinder()
+
+    /// Returns an owned reference; release it with `JPH_VehicleCollisionTester_Destroy`.
+    func createHandle() -> OpaquePointer {
+        var jphUp = JPH_Vec3(simd_normalize(up))
+        switch kind {
+        case .ray(let maxSlopeAngle):
+            return JPH_VehicleCollisionTesterRay_Create(objectLayer.rawValue, &jphUp, maxSlopeAngle)!
+        case .castSphere(let radius, let maxSlopeAngle):
+            return JPH_VehicleCollisionTesterCastSphere_Create(objectLayer.rawValue, radius, &jphUp, maxSlopeAngle)!
+        case .castCylinder(let convexRadiusFraction):
+            return JPH_VehicleCollisionTesterCastCylinder_Create(objectLayer.rawValue, convexRadiusFraction)!
+        }
+    }
+}
+
+/// A spring between a left and right wheel that resists body roll in corners.
+public struct AntiRollBar: Sendable, Equatable {
+    public var leftWheel: Int
+    public var rightWheel: Int
+    /// Newton-meters per radian of roll.
+    public var stiffness: Float
+
+    public init(leftWheel: Int, rightWheel: Int, stiffness: Float = 1000) {
+        self.leftWheel = leftWheel
+        self.rightWheel = rightWheel
+        self.stiffness = stiffness
+    }
+}
+
 // MARK: - Vehicle
 
 /// Base class for vehicles. A vehicle is a constraint on its body that also runs every physics
@@ -137,6 +205,14 @@ public class Vehicle: Constraint {
         return result.simd
     }
 
+    /// Replaces how the wheels find the ground.
+    public func setWheelCollisionTester(_ tester: WheelCollisionTester) {
+        let testerHandle = tester.createHandle()
+        // The constraint keeps its own reference.
+        defer { JPH_VehicleCollisionTester_Destroy(testerHandle) }
+        JPH_VehicleConstraint_SetVehicleCollisionTester(handle, testerHandle)
+    }
+
     /// Radians. The vehicle constraint stops the body from pitching or rolling further than this.
     public func setMaxPitchRollAngle(_ angle: Float) {
         JPH_VehicleConstraint_SetMaxPitchRollAngle(handle, angle)
@@ -154,15 +230,21 @@ extension PhysicsWorld {
         up: SIMD3<Float>,
         forward: SIMD3<Float>,
         maxPitchRollAngle: Float,
-        collisionTester: OpaquePointer
+        collisionTester: WheelCollisionTester,
+        antiRollBars: [AntiRollBar] = []
     ) -> V {
+        precondition(
+            antiRollBars.allSatisfy { (0..<wheelCount).contains($0.leftWheel) && (0..<wheelCount).contains($0.rightWheel) },
+            "Anti-roll bar wheel index out of range"
+        )
+        let testerHandle = collisionTester.createHandle()
         let wheels = (0..<wheelCount).map(makeWheel)
         defer {
             for wheel in wheels {
                 JPH_WheelSettings_Destroy(wheel)
             }
             JPH_VehicleControllerSettings_Destroy(controllerSettings)
-            JPH_VehicleCollisionTester_Destroy(collisionTester)
+            JPH_VehicleCollisionTester_Destroy(testerHandle)
         }
         var settings = JPH_VehicleConstraintSettings()
         JPH_VehicleConstraintSettings_Init(&settings)
@@ -171,14 +253,26 @@ extension PhysicsWorld {
         settings.maxPitchRollAngle = maxPitchRollAngle
         settings.controller = controllerSettings
         var wheelPointers: [OpaquePointer?] = wheels
+        let jphAntiRollBars = antiRollBars.map { bar in
+            var jph = JPH_VehicleAntiRollBar()
+            JPH_VehicleAntiRollBar_Init(&jph)
+            jph.leftWheel = Int32(bar.leftWheel)
+            jph.rightWheel = Int32(bar.rightWheel)
+            jph.stiffness = bar.stiffness
+            return jph
+        }
         let handle = wheelPointers.withUnsafeMutableBufferPointer { buffer in
-            settings.wheelsCount = UInt32(buffer.count)
-            settings.wheels = buffer.baseAddress
-            return withBodies(nil, body) { _, jphBody in
-                JPH_VehicleConstraint_Create(jphBody, &settings)!
+            jphAntiRollBars.withUnsafeBufferPointer { bars in
+                settings.wheelsCount = UInt32(buffer.count)
+                settings.wheels = buffer.baseAddress
+                settings.antiRollBarsCount = UInt32(bars.count)
+                settings.antiRollBars = bars.baseAddress
+                return withBodies(nil, body) { _, jphBody in
+                    JPH_VehicleConstraint_Create(jphBody, &settings)!
+                }
             }
         }
-        JPH_VehicleConstraint_SetVehicleCollisionTester(handle, collisionTester)
+        JPH_VehicleConstraint_SetVehicleCollisionTester(handle, testerHandle)
         return add(V(handle: handle, world: self, body: body))
     }
 }
@@ -282,7 +376,9 @@ extension PhysicsWorld {
         transmission: TransmissionSettings = TransmissionSettings(),
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1],
-        maxPitchRollAngle: Float = .pi
+        maxPitchRollAngle: Float = .pi,
+        antiRollBars: [AntiRollBar] = [],
+        collisionTester: WheelCollisionTester = .default
     ) -> WheeledVehicle {
         addWheeledVehicle(
             body: body,
@@ -292,7 +388,9 @@ extension PhysicsWorld {
             transmission: transmission,
             up: up,
             forward: forward,
-            maxPitchRollAngle: maxPitchRollAngle
+            maxPitchRollAngle: maxPitchRollAngle,
+            antiRollBars: antiRollBars,
+            collisionTester: collisionTester
         )
     }
 
@@ -309,7 +407,9 @@ extension PhysicsWorld {
         transmission: TransmissionSettings = TransmissionSettings(),
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1],
-        maxPitchRollAngle: Float = .pi
+        maxPitchRollAngle: Float = .pi,
+        antiRollBars: [AntiRollBar] = [],
+        collisionTester: WheelCollisionTester = .default
     ) -> WheeledVehicle {
         precondition(
             differentials.allSatisfy { wheels.indices.contains($0.leftWheel) && wheels.indices.contains($0.rightWheel) },
@@ -325,7 +425,8 @@ extension PhysicsWorld {
             up: up,
             forward: forward,
             maxPitchRollAngle: maxPitchRollAngle,
-            collisionTester: JPH_VehicleCollisionTesterCastCylinder_Create(ObjectLayer.moving.rawValue, 0.1)!
+            collisionTester: collisionTester,
+            antiRollBars: antiRollBars
         )
     }
 

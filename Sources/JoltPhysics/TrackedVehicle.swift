@@ -100,7 +100,9 @@ extension PhysicsWorld {
         transmission: TransmissionSettings = .tracked,
         up: SIMD3<Float> = [0, 1, 0],
         forward: SIMD3<Float> = [0, 0, 1],
-        maxPitchRollAngle: Float = .pi
+        maxPitchRollAngle: Float = .pi,
+        antiRollBars: [AntiRollBar] = [],
+        collisionTester: WheelCollisionTester = .default
     ) -> TrackedVehicle {
         for track in [leftTrack, rightTrack] {
             precondition(track.wheels.allSatisfy(wheels.indices.contains), "Track wheel index out of range")
@@ -129,7 +131,8 @@ extension PhysicsWorld {
             up: up,
             forward: forward,
             maxPitchRollAngle: maxPitchRollAngle,
-            collisionTester: JPH_VehicleCollisionTesterCastCylinder_Create(ObjectLayer.moving.rawValue, 0.1)!
+            collisionTester: collisionTester,
+            antiRollBars: antiRollBars
         )
     }
 }
