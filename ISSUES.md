@@ -514,6 +514,7 @@ updated: 2026-10-14T20:32:07Z
 +++
 
 - `2026-10-14T20:32:07Z`: Tried wrapping JPH_PhysicsMaterial. Punting: in Jolt a PhysicsMaterial only carries a debug name and colour (friction/restitution are per body), and joltc can only attach a material to PlaneShape and TaperedCylinderShape — not box, sphere, capsule, cylinder, convex hull, mesh triangles or height-field cells. Question: should this issue mean (a) Jolt's material tags, which would need joltc patches for most shapes, or (b) a Swift-side 'material' preset for friction/restitution/density applied in addBody? (b) is doable now.
+- `2026-11-16T20:04:05Z`: Re-checked in autonomous run. Punting again: still waiting on the (a) vs (b) decision in the previous comment. Unblocker: pick (a) Jolt material tags (needs joltc patches) or (b) Swift-side friction/restitution/density presets.
 
 ---
 
@@ -688,11 +689,12 @@ Found while working on #27.
 ## 47: Wrap rack-and-pinion constraint (needs joltc support)
 
 +++
-status: new
+status: open
 priority: low
 kind: feature
-labels: effort:m, area:constraints
+labels: effort:m, area:constraints, deferred
 created: 2026-10-14T21:05:21Z
+updated: 2026-11-16T20:03:28Z
 +++
 
 Split from #19. joltc (the C API) has no RackAndPinionConstraint functions, so it can't be wrapped yet. Needs either an upstream joltc change or a local patch to joltc that exposes JPH::RackAndPinionConstraintSettings (hinge axis, slider axis, ratio) plus SetConstraints(hinge, slider).
