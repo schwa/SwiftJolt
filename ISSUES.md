@@ -1852,12 +1852,13 @@ Unwrapped joltc API:
 ## 88: VirtualCharacter is missing contact inspection and fine-grained update steps
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:characters, effort:m
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:11:57Z
+closed: 2026-11-16T23:11:57Z
 +++
 
 VirtualCharacter only exposes ExtendedUpdate. It can't inspect active contacts, run WalkStairs/StickToFloor/RefreshContacts separately, change shape, use an inner body, or tune padding, hit limits and penetration recovery.
@@ -1892,6 +1893,8 @@ Unwrapped joltc API:
 - `JPH_CharacterVirtual_StickToFloor`
 - `JPH_CharacterVirtual_UpdateGroundVelocity`
 - `JPH_CharacterVirtual_WalkStairs`
+
+- `2026-11-16T23:11:57Z`: Added CharacterContact and VirtualCharacter.activeContacts, maxHitsExceeded, maxHitCount, hitReductionCosMaxAngle, penetrationRecoverySpeed, enhancedInternalEdgeRemoval, characterPadding, shapeOffset, worldTransform, centerOfMassTransform, setShape(_:maxPenetrationDepth:), refreshContacts(), updateGroundVelocity(), cancelVelocityTowardsSteepSlopes(_:), canWalkStairs(velocity:), walkStairs(...), stickToFloor(stepDown:), and inner bodies (addVirtualCharacter innerBodyShape:, innerBody, setInnerBodyShape). Left for #87: GetID, Start/FinishTrackingContactChanges, HasCollidedWith(character). Character queries still always use the .moving layer and no filters.
 
 ---
 

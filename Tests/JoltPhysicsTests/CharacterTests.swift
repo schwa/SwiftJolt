@@ -133,6 +133,102 @@ extension JoltTests {
             #expect(character.position.x < 2)
         }
 
+        @Test func virtualCharacterReportsActiveContacts() throws {
+            let (world, floor) = try makeWorldWithFloor()
+            let wall = world.addBody(.box(halfExtents: [0.5, 2, 5]), position: [3, 2, 0], motionType: .static)
+            let character = world.addVirtualCharacter(shape: capsule, position: [0, 0.9, 0])
+            walk(character, velocity: [3, 0, 0], seconds: 2, world: world)
+            let contacts = character.activeContacts
+            #expect(Set(contacts.compactMap(\.body)) == [floor, wall])
+            let wallContact = try #require(contacts.first { $0.body == wall })
+            #expect(wallContact.motionType == .static)
+            #expect(abs(wallContact.surfaceNormal.x + 1) < 0.01)
+            #expect(!character.maxHitsExceeded)
+            character.refreshContacts()
+            #expect(character.activeContacts.count == contacts.count)
+        }
+
+        @Test func virtualCharacterTransforms() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let character = world.addVirtualCharacter(shape: capsule, position: [1, 2, 3])
+            #expect(character.worldTransform.columns.3 == [1, 2, 3, 1])
+            character.shapeOffset = [0, 0.5, 0]
+            #expect(character.shapeOffset == [0, 0.5, 0])
+            // Jolt also lifts the shape by the character padding.
+            #expect(abs(character.centerOfMassTransform.columns.3.y - (2.5 + character.characterPadding)) < 1e-4)
+        }
+
+        @Test func virtualCharacterTuning() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let character = world.addVirtualCharacter(shape: capsule, position: [0, 0.9, 0])
+            character.maxHitCount = 64
+            character.hitReductionCosMaxAngle = 0.9
+            character.penetrationRecoverySpeed = 0.5
+            character.enhancedInternalEdgeRemoval = true
+            #expect(character.maxHitCount == 64)
+            #expect(character.hitReductionCosMaxAngle == 0.9)
+            #expect(character.penetrationRecoverySpeed == 0.5)
+            #expect(character.enhancedInternalEdgeRemoval)
+            #expect(character.characterPadding > 0)
+        }
+
+        @Test func virtualCharacterSetShapeRespectsSpace() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let character = world.addVirtualCharacter(shape: .sphere(radius: 0.4), position: [0, 0.4, 0])
+            // Centered at y = 0.4, this capsule reaches down to y = -0.7, deep into the floor.
+            #expect(!character.setShape(.capsule(halfHeightOfCylinder: 0.7, radius: 0.4)))
+            #expect(character.setShape(.sphere(radius: 0.3)))
+            #expect(character.setShape(.capsule(halfHeightOfCylinder: 0.7, radius: 0.4), maxPenetrationDepth: .infinity))
+        }
+
+        @Test func virtualCharacterStepwiseStairs() throws {
+            let (world, _) = try makeWorldWithFloor()
+            world.addBody(.box(halfExtents: [5, 0.15, 5]), position: [7, 0.15, 0], motionType: .static)
+            let character = world.addVirtualCharacter(shape: capsule, position: [0, 0.9, 0])
+            let deltaTime: Float = 1.0 / 60.0
+            let velocity: SIMD3<Float> = [2, 0, 0]
+            for _ in 0..<120 {
+                character.linearVelocity = velocity
+                character.update(deltaTime: deltaTime, stickToFloor: false, walkStairs: false)
+                if character.canWalkStairs(velocity: velocity) {
+                    character.walkStairs(deltaTime: deltaTime, stepForward: velocity * deltaTime, stepForwardTest: [0.15, 0, 0])
+                }
+                character.stickToFloor()
+            }
+            #expect(character.position.x > 3.5)
+            #expect(abs(character.position.y - 1.2) < 0.05)
+        }
+
+        @Test func virtualCharacterCancelsVelocityUpSteepSlope() throws {
+            let world = try makeWorld()
+            // 60° ramp rising toward +X.
+            world.addBody(.box(halfExtents: [5, 0.5, 5]), rotation: simd_quatf(angle: .pi / 3, axis: [0, 0, 1]), motionType: .static)
+            let character = world.addVirtualCharacter(shape: capsule, position: [-1.5, 0, 0])
+            character.linearVelocity = [0, -1, 0]
+            for _ in 0..<30 {
+                character.update(deltaTime: 1.0 / 60.0)
+            }
+            #expect(character.groundState == .onSteepGround)
+            let cancelled = character.cancelVelocityTowardsSteepSlopes([3, 0, 0])
+            #expect(cancelled.x < 3)
+            character.updateGroundVelocity()
+            #expect(character.groundVelocity == .zero)
+        }
+
+        @Test func virtualCharacterInnerBody() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let plain = world.addVirtualCharacter(shape: capsule, position: [5, 0.9, 0])
+            #expect(plain.innerBody == nil)
+            let character = world.addVirtualCharacter(shape: capsule, position: [0, 0.9, 0], innerBodyShape: capsule)
+            let inner = try #require(character.innerBody)
+            #expect(world.bodies.contains(inner))
+            walk(character, velocity: [1, 0, 0], seconds: 1, world: world)
+            #expect(abs(world.position(of: inner).x - character.position.x) < 0.05)
+            character.setInnerBodyShape(.sphere(radius: 0.4))
+            let hit = try #require(world.castRay(origin: [character.position.x, 5, 0], direction: [0, -10, 0]))
+            #expect(hit.body == inner)
+        }
+
         @Test func characterCanOutliveWorldReference() throws {
             var character: Character?
             do {
