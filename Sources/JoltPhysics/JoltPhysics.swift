@@ -76,9 +76,31 @@ public enum Shape: Sendable {
     /// A compound whose children can be added, removed and moved after the body exists, with
     /// `PhysicsWorld.addCompoundChild` and related methods. Slower to simulate than `.compound`.
     case mutableCompound([CompoundChild])
+    /// `shape` scaled per axis. Some shapes (spheres, capsules) only allow uniform scale.
+    indirect case scaled(Self, scale: SIMD3<Float>)
+    /// `shape` moved and rotated relative to the body origin.
+    indirect case rotatedTranslated(Self, position: SIMD3<Float>, rotation: simd_quatf = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1))
+    /// `shape` with its center of mass moved by `offset`. The collision geometry does not move.
+    indirect case offsetCenterOfMass(Self, offset: SIMD3<Float>)
 
     func createHandle() -> OpaquePointer {
         switch self {
+        case .scaled(let inner, let scale):
+            let innerHandle = inner.createHandle()
+            defer { JPH_Shape_Destroy(innerHandle) }
+            var jphScale = JPH_Vec3(scale)
+            return JPH_ScaledShape_Create(innerHandle, &jphScale)!
+        case .rotatedTranslated(let inner, let position, let rotation):
+            let innerHandle = inner.createHandle()
+            defer { JPH_Shape_Destroy(innerHandle) }
+            var jphPosition = JPH_Vec3(position)
+            var jphRotation = JPH_Quat(rotation)
+            return JPH_RotatedTranslatedShape_Create(&jphPosition, &jphRotation, innerHandle)!
+        case .offsetCenterOfMass(let inner, let offset):
+            let innerHandle = inner.createHandle()
+            defer { JPH_Shape_Destroy(innerHandle) }
+            var jphOffset = JPH_Vec3(offset)
+            return JPH_OffsetCenterOfMassShape_Create(&jphOffset, innerHandle)!
         case .box(let halfExtents, let convexRadius):
             var he = JPH_Vec3(halfExtents)
             return JPH_BoxShape_Create(&he, convexRadius)!

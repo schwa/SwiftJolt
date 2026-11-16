@@ -251,5 +251,42 @@ extension JoltTests {
             let y = try restingHeight(of: .cylinder(halfHeight: 1, radius: 0.5))
             #expect(abs(y - 1) < 0.05)
         }
+
+        @Test func scaledBoxRayHitsMatchScale() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.scaled(.box(halfExtents: [1, 1, 1], convexRadius: 0), scale: [2, 3, 1]), motionType: .static)
+            let top = try #require(world.castRay(origin: [0, 10, 0], direction: [0, -20, 0]))
+            #expect(top.body == body)
+            #expect(abs(top.position.y - 3) < 1e-3)
+            let side = try #require(world.castRay(origin: [10, 0, 0], direction: [-20, 0, 0]))
+            #expect(abs(side.position.x - 2) < 1e-3)
+        }
+
+        @Test func rotatedTranslatedShapeMovesGeometry() throws {
+            let world = try makeWorld()
+            let rotation = simd_quatf(angle: .pi / 2, axis: [0, 0, 1])
+            let shape = Shape.rotatedTranslated(.box(halfExtents: [2, 0.5, 0.5], convexRadius: 0), position: [5, 0, 0], rotation: rotation)
+            let body = world.addBody(shape, motionType: .static)
+            // Rotated 90° about Z, the box's long axis is now Y.
+            let top = try #require(world.castRay(origin: [5, 10, 0], direction: [0, -20, 0]))
+            #expect(top.body == body)
+            #expect(abs(top.position.y - 2) < 1e-3)
+            #expect(world.castRay(origin: [0, 10, 0], direction: [0, -20, 0]) == nil)
+        }
+
+        @Test func offsetCenterOfMassTipsBodyOver() throws {
+            // A tall thin box stays upright, but tips when its center of mass is outside its base.
+            func tilt(_ shape: Shape) throws -> Float {
+                let world = try makeWorld()
+                world.addBody(.box(halfExtents: [50, 0.5, 50]), position: [0, -0.5, 0], motionType: .static)
+                let body = world.addBody(shape, position: [0, 2, 0], restitution: 0)
+                simulate(world, seconds: 3)
+                let up = world.rotation(of: body).act([0, 1, 0])
+                return acos(min(1, up.y))
+            }
+            let box = Shape.box(halfExtents: [0.25, 2, 0.25])
+            #expect(try tilt(box) < 0.05)
+            #expect(try tilt(.offsetCenterOfMass(box, offset: [1, 0, 0])) > 1)
+        }
     }
 }

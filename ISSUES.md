@@ -1474,12 +1474,13 @@ Unwrapped joltc API:
 ## 78: Decorator shapes (scaled, rotated/translated, offset COM) are not available
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: area:shapes, effort:m
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:35:02Z
+closed: 2026-11-16T22:35:02Z
 +++
 
 Shape has no cases for Jolt's decorated shapes. Non-uniform scale, offsetting a shape from the body origin, and moving the center of mass all need them.
@@ -1504,6 +1505,8 @@ Unwrapped joltc API:
 - `JPH_Shape_IsValidScale`
 - `JPH_Shape_MakeScaleValid`
 - `JPH_Shape_ScaleShape`
+
+- `2026-11-16T22:35:02Z`: Added Shape.scaled, .rotatedTranslated and .offsetCenterOfMass with tests.
 
 ---
 

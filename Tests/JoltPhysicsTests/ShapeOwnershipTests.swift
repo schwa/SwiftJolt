@@ -33,6 +33,18 @@ extension JoltTests {
             }
         }
 
+        @Test func decoratedShapeHoldsTheOnlyInnerReference() throws {
+            let world = try makeWorld()
+            let inner = Shape.box(halfExtents: [1, 1, 1])
+            for shape in [Shape.scaled(inner, scale: [2, 2, 2]), .rotatedTranslated(inner, position: [1, 0, 0]), .offsetCenterOfMass(inner, offset: [0.5, 0, 0])] {
+                let body = world.addBody(shape)
+                let decorated = JPH_BodyInterface_GetShape(world.bodyInterface, body.rawValue)!
+                #expect(referenceCount(of: decorated) == 1)
+                let innerHandle = JPH_DecoratedShape_GetInnerShape(decorated)!
+                #expect(referenceCount(of: innerHandle) == 1, "inner of \(shape)")
+            }
+        }
+
         @Test func addedMutableCompoundChildHasOneReference() throws {
             let world = try makeWorld()
             let body = world.addBody(.mutableCompound([CompoundChild(.sphere(radius: 1))]))
