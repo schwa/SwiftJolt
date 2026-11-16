@@ -27,6 +27,75 @@ public struct Contact: Sendable {
     public var pointsOn1: [SIMD3<Float>]
     /// World-space contact points on body2.
     public var pointsOn2: [SIMD3<Float>]
+    var callbackScope: ContactCallbackScope?
+
+    /// Predicts the velocities and impulses that solving this contact will produce, for example
+    /// to pick an impact sound or apply damage. Only valid inside `contactAdded` or
+    /// `contactPersisted`; calling it later is a precondition failure.
+    public func estimateResponse(
+        friction: Float,
+        restitution: Float,
+        minVelocityForRestitution: Float = 1,
+        iterations: Int = 10
+    ) -> CollisionResponseEstimate {
+        guard let callbackScope, callbackScope.isValid else {
+            preconditionFailure("Contact.estimateResponse is only valid inside a contact listener callback")
+        }
+        var result = JPH_CollisionEstimationResult()
+        JPH_EstimateCollisionResponse(
+            callbackScope.body1, callbackScope.body2, callbackScope.manifold,
+            friction, restitution, minVelocityForRestitution, UInt32(iterations), &result
+        )
+        defer { JPH_CollisionEstimationResult_FreeMembers(&result) }
+        return CollisionResponseEstimate(result)
+    }
+}
+
+public struct CollisionResponseEstimate: Sendable {
+    public struct Impulse: Sendable, Hashable {
+        /// Impulse along the contact normal.
+        public var contact: Float
+        /// Friction impulse along `tangent1`.
+        public var friction1: Float
+        /// Friction impulse along `tangent2`.
+        public var friction2: Float
+    }
+
+    public var linearVelocity1: SIMD3<Float>
+    public var angularVelocity1: SIMD3<Float>
+    public var linearVelocity2: SIMD3<Float>
+    public var angularVelocity2: SIMD3<Float>
+    public var tangent1: SIMD3<Float>
+    public var tangent2: SIMD3<Float>
+    /// One entry per contact point.
+    public var impulses: [Impulse]
+
+    init(_ result: JPH_CollisionEstimationResult) {
+        linearVelocity1 = result.linearVelocity1.simd
+        angularVelocity1 = result.angularVelocity1.simd
+        linearVelocity2 = result.linearVelocity2.simd
+        angularVelocity2 = result.angularVelocity2.simd
+        tangent1 = result.tangent1.simd
+        tangent2 = result.tangent2.simd
+        impulses = (0..<Int(result.impulseCount)).map { index in
+            let impulse = result.impulses[index]
+            return Impulse(contact: impulse.contactImpulse, friction1: impulse.frictionImpulse1, friction2: impulse.frictionImpulse2)
+        }
+    }
+}
+
+/// The Jolt pointers behind a `Contact`, valid only while the listener callback runs.
+final class ContactCallbackScope: @unchecked Sendable {
+    let body1: OpaquePointer
+    let body2: OpaquePointer
+    let manifold: OpaquePointer
+    var isValid = true
+
+    init(body1: OpaquePointer, body2: OpaquePointer, manifold: OpaquePointer) {
+        self.body1 = body1
+        self.body2 = body2
+        self.manifold = manifold
+    }
 }
 
 /// Per-contact settings that a listener can change in `contactAdded` and `contactPersisted`.
@@ -80,12 +149,14 @@ private let installContactListenerProcs: Void = {
         },
         OnContactAdded: { userData, body1, body2, manifold, settings in
             let contact = Contact(body1!, body2!, manifold!)
+            defer { contact.callbackScope?.isValid = false }
             var swiftSettings = ContactSettings(settings!.pointee)
             ContactListenerBox.from(userData).contactAdded(contact, settings: &swiftSettings)
             swiftSettings.apply(to: settings!)
         },
         OnContactPersisted: { userData, body1, body2, manifold, settings in
             let contact = Contact(body1!, body2!, manifold!)
+            defer { contact.callbackScope?.isValid = false }
             var swiftSettings = ContactSettings(settings!.pointee)
             ContactListenerBox.from(userData).contactPersisted(contact, settings: &swiftSettings)
             swiftSettings.apply(to: settings!)
@@ -126,7 +197,8 @@ extension Contact {
             normal: normal.simd,
             penetrationDepth: JPH_ContactManifold_GetPenetrationDepth(manifold),
             pointsOn1: pointsOn1,
-            pointsOn2: pointsOn2
+            pointsOn2: pointsOn2,
+            callbackScope: ContactCallbackScope(body1: body1, body2: body2, manifold: manifold)
         )
     }
 }

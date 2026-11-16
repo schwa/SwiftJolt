@@ -1773,12 +1773,13 @@ Unwrapped joltc API:
 ## 84: Collision response estimation is not exposed
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:queries, effort:s
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:40:41Z
+closed: 2026-11-16T23:40:41Z
 +++
 
 Jolt's EstimateCollisionResponse predicts impulses and velocities after a contact. Games use it for impact sounds and damage. It is not available in Swift.

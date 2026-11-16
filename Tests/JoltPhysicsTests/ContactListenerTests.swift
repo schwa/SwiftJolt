@@ -43,9 +43,35 @@ final class RecordingListener: ContactListener {
     }
 }
 
+final class EstimatingListener: ContactListener {
+    let estimates = Mutex<[(Contact, CollisionResponseEstimate)]>([])
+
+    func contactAdded(_ contact: Contact, settings: inout ContactSettings) {
+        let estimate = contact.estimateResponse(friction: settings.combinedFriction, restitution: settings.combinedRestitution)
+        estimates.withLock { $0.append((contact, estimate)) }
+    }
+}
+
 extension JoltTests {
     @Suite
     struct ContactListenerTests {
+        @Test func estimatesImpactResponse() throws {
+            let listener = EstimatingListener()
+            let world = try makeWorld()
+            world.contactListener = listener
+            let floor = world.addBody(.box(halfExtents: [10, 0.5, 10]), position: [0, -0.5, 0], motionType: .static, restitution: 0.5)
+            let ball = world.addBody(.sphere(radius: 0.5), position: [0, 0.6, 0], restitution: 0.5)
+            world.setLinearVelocity(of: ball, to: [0, -5, 0])
+            simulate(world, seconds: 0.2)
+            let (contact, estimate) = try #require(listener.estimates.withLock { $0.first })
+            #expect(Set([contact.body1, contact.body2]) == [floor, ball])
+            #expect(estimate.impulses.count == contact.pointsOn1.count)
+            #expect(estimate.impulses.reduce(0) { $0 + $1.contact } > 0)
+            let ballVelocity = contact.body1 == ball ? estimate.linearVelocity1 : estimate.linearVelocity2
+            // Restitution 0.5 bounces the ~5 m/s impact back at ~2.5 m/s.
+            #expect(abs(ballVelocity.y - 2.5) < 0.3)
+        }
+
         func makeScene(listener: RecordingListener) throws -> (PhysicsWorld, floor: BodyID, ball: BodyID) {
             let world = try makeWorld()
             world.contactListener = listener
