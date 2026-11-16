@@ -822,13 +822,14 @@ Wrap JPH_Skeleton: create, add joints with parent (AddJoint2/3), joint count/loo
 ## 54: Wrap SkeletonPose
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:m, subtask, area:ragdolls
 depends: 53
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:21:11Z
+closed: 2026-11-16T20:21:11Z
 +++
 
 Wrap JPH_SkeletonPose: set skeleton, root offset, joint states/matrices, CalculateJointMatrices/States. Accept: round-trip joint states to matrices in a test. Part of #35.
