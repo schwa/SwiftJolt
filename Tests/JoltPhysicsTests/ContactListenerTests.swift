@@ -91,6 +91,28 @@ extension JoltTests {
             #expect(world.position(of: ball).y < -1)
         }
 
+        @Test func sensorBodyDetectsButDoesNotBlock() throws {
+            let listener = RecordingListener()
+            let world = try makeWorld()
+            world.contactListener = listener
+            let sensor = world.addBody(.box(halfExtents: [2, 0.5, 2]), motionType: .static, options: BodyOptions(isSensor: true))
+            let ball = world.addBody(.sphere(radius: 0.5), position: [0, 3, 0])
+            #expect(world.isSensor(sensor))
+            #expect(!world.isSensor(ball))
+            simulate(world, seconds: 1.5)
+            let added = listener.events.withLock { $0.added }
+            #expect(added.contains { Set([$0.body1, $0.body2]) == [sensor, ball] })
+            #expect(world.position(of: ball).y < -1)
+        }
+
+        @Test func setIsSensorTurnsFloorIntoSensor() throws {
+            let (world, floor, ball) = try makeScene(listener: RecordingListener())
+            world.setIsSensor(floor, to: true)
+            #expect(world.isSensor(floor))
+            simulate(world, seconds: 1)
+            #expect(world.position(of: ball).y < -1)
+        }
+
         @Test func clearingListenerStopsEvents() throws {
             let listener = RecordingListener()
             let (world, _, _) = try makeScene(listener: listener)

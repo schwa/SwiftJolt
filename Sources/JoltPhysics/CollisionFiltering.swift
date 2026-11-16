@@ -171,6 +171,15 @@ extension PhysicsWorld {
         JPH_BodyInterface_SetObjectLayer(bodyInterface, body.rawValue, layer.rawValue)
     }
 
+    /// See `BodyOptions.isSensor`.
+    public func isSensor(_ body: BodyID) -> Bool {
+        JPH_BodyInterface_IsSensor(bodyInterface, body.rawValue)
+    }
+
+    public func setIsSensor(_ body: BodyID, to isSensor: Bool) {
+        JPH_BodyInterface_SetIsSensor(bodyInterface, body.rawValue, isSensor)
+    }
+
     public func collisionGroup(of body: BodyID) -> CollisionGroup {
         var result = JPH_CollisionGroup()
         JPH_BodyInterface_GetCollisionGroup(bodyInterface, body.rawValue, &result)

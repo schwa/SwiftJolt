@@ -1039,12 +1039,13 @@ These paths crash the process, so normal tests cannot reach them.
 ## 65: Rigid bodies can't be sensors (triggers)
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:39:25Z
+closed: 2026-11-16T22:39:25Z
 +++
 
 PhysicsWorld.addBody has no way to make a body a sensor, and there is no way to toggle it later. Sensors detect overlaps without a collision response. They are the usual way to build trigger volumes.
@@ -1054,6 +1055,8 @@ Unwrapped joltc API:
 - `JPH_BodyCreationSettings_SetIsSensor`
 - `JPH_BodyInterface_IsSensor`
 - `JPH_BodyInterface_SetIsSensor`
+
+- `2026-11-16T22:39:25Z`: Added BodyOptions.isSensor and PhysicsWorld.isSensor(_:)/setIsSensor(_:to:). LockedBody.isSensor already existed.
 
 ---
 
