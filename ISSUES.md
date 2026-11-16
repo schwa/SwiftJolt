@@ -757,12 +757,13 @@ Investigate ways to avoid the inversion, e.g.:
 ## 50: Wrap soft body shared settings
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:s, subtask, area:softbodies
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:15:53Z
+closed: 2026-11-16T20:15:53Z
 +++
 
 Wrap JPH_SoftBodySharedSettings: create, add vertices/faces, pinned vertices, CreateConstraints, Optimize. Accept: build a cloth grid from Swift and read vertex count/positions back. Part of #34.
