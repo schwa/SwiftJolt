@@ -1156,12 +1156,13 @@ Unwrapped joltc API:
 ## 68: Bodies have no user data
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:40:38Z
+closed: 2026-11-16T22:40:38Z
 +++
 
 Bodies, shapes, constraints and virtual characters cannot carry a user data value. Apps have to keep their own BodyID-to-object map.
@@ -1187,6 +1188,8 @@ Unwrapped joltc API:
 - `JPH_ShapeSettings_SetUserData`
 - `JPH_SoftBodyCreationSettings_GetUserData`
 - `JPH_SoftBodyCreationSettings_SetUserData`
+
+- `2026-11-16T22:40:38Z`: Added user data for bodies (BodyOptions.userData, userData(of:)/setUserData(of:to:), LockedBody.userData), soft bodies (SoftBodyOptions.userData), constraints (Constraint.userData) and virtual characters (VirtualCharacter.userData). Shape user data not added: Shape is a value enum with no persistent handle; it fits better with #80 (shape inspection).
 
 ---
 

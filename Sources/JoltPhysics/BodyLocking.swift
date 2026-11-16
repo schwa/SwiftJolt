@@ -86,6 +86,11 @@ public struct LockedBody: ~Copyable {
         set { JPH_Body_SetRestitution(pointer, newValue) }
     }
 
+    public var userData: UInt64 {
+        get { JPH_Body_GetUserData(pointer) }
+        set { JPH_Body_SetUserData(pointer, newValue) }
+    }
+
     /// Sensors report contacts but do not collide.
     public var isSensor: Bool {
         get { JPH_Body_IsSensor(pointer) }

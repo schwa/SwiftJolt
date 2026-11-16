@@ -107,6 +107,7 @@ public struct SoftBodyOptions: Sendable, Equatable {
     public var makeRotationIdentity = true
     public var allowSleeping = true
     public var facesDoubleSided = false
+    public var userData: UInt64 = 0
 
     public init() {}
 }
@@ -142,6 +143,7 @@ extension PhysicsWorld {
         JPH_SoftBodyCreationSettings_SetMakeRotationIdentity(creation, options.makeRotationIdentity)
         JPH_SoftBodyCreationSettings_SetAllowSleeping(creation, options.allowSleeping)
         JPH_SoftBodyCreationSettings_SetFacesDoubleSided(creation, options.facesDoubleSided)
+        JPH_SoftBodyCreationSettings_SetUserData(creation, options.userData)
 
         let body = BodyID(rawValue: JPH_BodyInterface_CreateAndAddSoftBody(bodyInterface, creation, JPH_Activation_Activate))
         softBodySettings[body] = settings

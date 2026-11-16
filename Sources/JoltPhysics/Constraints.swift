@@ -20,6 +20,11 @@ public class Constraint {
         set { JPH_Constraint_SetEnabled(handle, newValue) }
     }
 
+    public var userData: UInt64 {
+        get { JPH_Constraint_GetUserData(handle) }
+        set { JPH_Constraint_SetUserData(handle, newValue) }
+    }
+
     /// Called just before the constraint is removed from `system`. Vehicles unregister their step listener here.
     func willRemove(from _: OpaquePointer) {}
 }

@@ -171,6 +171,15 @@ extension PhysicsWorld {
         JPH_BodyInterface_SetObjectLayer(bodyInterface, body.rawValue, layer.rawValue)
     }
 
+    /// See `BodyOptions.userData`.
+    public func userData(of body: BodyID) -> UInt64 {
+        JPH_BodyInterface_GetUserData(bodyInterface, body.rawValue)
+    }
+
+    public func setUserData(of body: BodyID, to userData: UInt64) {
+        JPH_BodyInterface_SetUserData(bodyInterface, body.rawValue, userData)
+    }
+
     /// See `BodyOptions.isSensor`.
     public func isSensor(_ body: BodyID) -> Bool {
         JPH_BodyInterface_IsSensor(bodyInterface, body.rawValue)

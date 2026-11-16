@@ -54,6 +54,8 @@ public struct BodyOptions: Sendable, Equatable {
     public var isSensor = false
     /// Axes the body may move and rotate along. Ignored for static bodies.
     public var allowedDegreesOfFreedom: AllowedDegreesOfFreedom = .all
+    /// Any value the app wants to attach to the body, such as an index into its own tables.
+    public var userData: UInt64 = 0
 
     public init(
         linearVelocity: SIMD3<Float> = .zero,
@@ -77,7 +79,8 @@ public struct BodyOptions: Sendable, Equatable {
         objectLayer: ObjectLayer? = nil,
         collisionGroup: CollisionGroup = .ungrouped,
         isSensor: Bool = false,
-        allowedDegreesOfFreedom: AllowedDegreesOfFreedom = .all
+        allowedDegreesOfFreedom: AllowedDegreesOfFreedom = .all,
+        userData: UInt64 = 0
     ) {
         precondition(!allowedDegreesOfFreedom.isEmpty, "A body needs at least one degree of freedom")
         if let mass {
@@ -106,6 +109,7 @@ public struct BodyOptions: Sendable, Equatable {
         self.collisionGroup = collisionGroup
         self.isSensor = isSensor
         self.allowedDegreesOfFreedom = allowedDegreesOfFreedom
+        self.userData = userData
     }
 
     public static let `default` = Self()
@@ -131,6 +135,7 @@ public struct BodyOptions: Sendable, Equatable {
         JPH_BodyCreationSettings_SetNumVelocityStepsOverride(settings, UInt32(velocityStepsOverride))
         JPH_BodyCreationSettings_SetNumPositionStepsOverride(settings, UInt32(positionStepsOverride))
         JPH_BodyCreationSettings_SetIsSensor(settings, isSensor)
+        JPH_BodyCreationSettings_SetUserData(settings, userData)
         JPH_BodyCreationSettings_SetAllowedDOFs(settings, JPH_AllowedDOFs(rawValue: allowedDegreesOfFreedom.rawValue))
         var group = collisionGroup.jph
         JPH_BodyCreationSettings_SetCollisionGroup(settings, &group)

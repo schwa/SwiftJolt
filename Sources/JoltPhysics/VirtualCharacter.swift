@@ -6,6 +6,11 @@ import simd
 /// for you: add it to `linearVelocity` yourself each frame. Create one with
 /// `PhysicsWorld.addVirtualCharacter`.
 public final class VirtualCharacter: CharacterBase {
+    public var userData: UInt64 {
+        get { JPH_CharacterVirtual_GetUserData(handle) }
+        set { JPH_CharacterVirtual_SetUserData(handle, newValue) }
+    }
+
     public var position: SIMD3<Float> {
         get {
             var result = JPH_RVec3()
