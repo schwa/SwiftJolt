@@ -805,12 +805,13 @@ Users need the deformed vertex positions after simulation to render a soft body.
 ## 53: Wrap Skeleton
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:s, subtask, area:ragdolls
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:17:14Z
+closed: 2026-11-16T20:17:14Z
 +++
 
 Wrap JPH_Skeleton: create, add joints with parent (AddJoint2/3), joint count/lookup. Accept: build a skeleton in a test and query its joints. Part of #35.
