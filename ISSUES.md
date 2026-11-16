@@ -773,13 +773,14 @@ Wrap JPH_SoftBodySharedSettings: create, add vertices/faces, pinned vertices, Cr
 ## 51: Create and add soft bodies to the world
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: effort:m, subtask, area:softbodies
 depends: 50
 created: 2026-11-16T20:11:05Z
-updated: 2026-11-16T20:11:09Z
+updated: 2026-11-16T20:20:33Z
+closed: 2026-11-16T20:20:33Z
 +++
 
 Wrap JPH_SoftBodyCreationSettings (position, rotation, iterations, friction, restitution, etc.) and BodyInterface CreateSoftBody/AddSoftBody. Accept: a pinned cloth falls/sags under gravity in a test. Part of #34.

@@ -293,6 +293,8 @@ public final class PhysicsWorld {
     var contactListenerHandle: OpaquePointer?
     var constraints: [ObjectIdentifier: Constraint] = [:]
     var characters: [WeakCharacter] = []
+    // Soft bodies point at their shared settings, so keep them alive until the body goes.
+    var softBodySettings: [BodyID: SoftBodySharedSettings] = [:]
     var activationListenerHandle: OpaquePointer?
     var activationListenerBox: Unmanaged<ActivationListenerBox>?
 
@@ -430,6 +432,7 @@ public final class PhysicsWorld {
     /// Remove and destroy a body.
     public func removeBody(_ body: BodyID) {
         JPH_BodyInterface_RemoveAndDestroyBody(bodyInterface, body.rawValue)
+        softBodySettings[body] = nil
     }
 
     // MARK: - Simulation
