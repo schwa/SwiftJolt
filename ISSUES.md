@@ -2320,12 +2320,13 @@ Unwrapped joltc API:
 ## 98: Jolt trace and assert messages are not surfaced
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:api, effort:s
 created: 2026-11-16T21:37:14Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:06:48Z
+closed: 2026-11-16T23:06:48Z
 +++
 
 Jolt trace output and assertion failures are not routed into Swift, so their diagnostics are lost or go to stderr.
@@ -2335,6 +2336,7 @@ Unwrapped joltc API:
 - `JPH_SetTraceHandler`
 
 - `2026-11-16T22:33:43Z`: Related: #64 (precondition/assert paths are untested).
+- `2026-11-16T23:06:48Z`: Added JoltEngine.setTraceHandler(_:) and setAssertionHandler(_:) (JoltAssertionFailure). Test gap: the test only installs/removes handlers. No Jolt trace is reachable on purpose through the public API, and the bundled xcframework is a Release build with asserts off, so the assertion handler never fires (see #64).
 
 ---
 
