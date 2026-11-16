@@ -2383,12 +2383,13 @@ Unwrapped joltc API:
 ## 99: Job system thread pool can't be configured
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:api, effort:s
 created: 2026-11-16T21:37:14Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:47:55Z
+closed: 2026-11-16T23:47:55Z
 +++
 
 The job system uses a fixed configuration. The thread pool type/size can't be chosen by the app.

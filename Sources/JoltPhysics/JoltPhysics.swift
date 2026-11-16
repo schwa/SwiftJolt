@@ -330,7 +330,7 @@ public final class PhysicsWorld {
     public let engine: JoltEngine
     let system: OpaquePointer
     private let jobSystem: OpaquePointer
-    private let jobThreadPool = JobThreadPool()
+    private let jobThreadPool: JobThreadPool?
     private let lockingBodyInterface: OpaquePointer
     private let noLockBodyInterface: OpaquePointer
 
@@ -401,7 +401,8 @@ public final class PhysicsWorld {
         maxBodies: UInt32 = 10240,
         maxBodyPairs: UInt32 = 65536,
         maxContactConstraints: UInt32 = 10240,
-        collisionLayers: CollisionLayers = .default
+        collisionLayers: CollisionLayers = .default,
+        jobSystem jobSystemKind: JobSystemKind = .default
     ) {
         self.engine = engine
         self.collisionLayers = collisionLayers
@@ -427,31 +428,46 @@ public final class PhysicsWorld {
         var g = JPH_Vec3(gravity)
         JPH_PhysicsSystem_SetGravity(system, &g)
 
-        // Jolt's own thread pool runs at Default QoS, causing priority inversions when updated from a
-        // higher-QoS thread. Our pool runs its threads at user-interactive QoS instead.
+        switch jobSystemKind {
+        case .joltThreadPool(let threadCount, let maxJobs, let maxBarriers):
+            jobThreadPool = nil
+            var config = JobSystemThreadPoolConfig(
+                maxJobs: UInt32(maxJobs),
+                maxBarriers: UInt32(maxBarriers),
+                numThreads: Int32(threadCount ?? -1)
+            )
+            self.jobSystem = JPH_JobSystemThreadPool_Create(&config)
+        case .userInteractiveThreadPool(let threadCount, let maxBarriers):
+            let pool = JobThreadPool(threadCount: threadCount ?? JobThreadPool.defaultThreadCount)
+            jobThreadPool = pool
+            self.jobSystem = Self.makeCallbackJobSystem(pool: pool, maxBarriers: maxBarriers)
+        }
+
+        self.lockingBodyInterface = JPH_PhysicsSystem_GetBodyInterface(system)
+        self.noLockBodyInterface = JPH_PhysicsSystem_GetBodyInterfaceNoLock(system)
+    }
+
+    private static func makeCallbackJobSystem(pool: JobThreadPool, maxBarriers: Int) -> OpaquePointer {
         var jobConfig = JPH_JobSystemConfig(
-            context: Unmanaged.passUnretained(jobThreadPool).toOpaque(),
+            context: Unmanaged.passUnretained(pool).toOpaque(),
             queueJob: { context, job, arg in
                 guard let context, let job else {
                     return
                 }
-                let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
-                pool.enqueue([PooledJob(job: job, arg: arg)])
+                let jobPool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
+                jobPool.enqueue([PooledJob(job: job, arg: arg)])
             },
             queueJobs: { context, job, args, count in
                 guard let context, let job, let args else {
                     return
                 }
-                let pool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
-                pool.enqueue((0..<Int(count)).map { PooledJob(job: job, arg: args[$0]) })
+                let jobPool = Unmanaged<JobThreadPool>.fromOpaque(context).takeUnretainedValue()
+                jobPool.enqueue((0..<Int(count)).map { PooledJob(job: job, arg: args[$0]) })
             },
-            maxConcurrency: UInt32(jobThreadPool.threadCount + 1),
-            maxBarriers: 8
+            maxConcurrency: UInt32(pool.threadCount + 1),
+            maxBarriers: UInt32(maxBarriers)
         )
-        self.jobSystem = JPH_JobSystemCallback_Create(&jobConfig)
-
-        self.lockingBodyInterface = JPH_PhysicsSystem_GetBodyInterface(system)
-        self.noLockBodyInterface = JPH_PhysicsSystem_GetBodyInterfaceNoLock(system)
+        return JPH_JobSystemCallback_Create(&jobConfig)!
     }
 
     deinit {
@@ -468,7 +484,7 @@ public final class PhysicsWorld {
         releaseContactListener()
         releaseActivationListener()
         // Queued jobs can still hold job references after an update returns.
-        jobThreadPool.shutdown()
+        jobThreadPool?.shutdown()
         JPH_JobSystem_Destroy(jobSystem)
     }
 
@@ -1025,14 +1041,32 @@ struct PooledJob: @unchecked Sendable {
     }
 }
 
+/// Which job system runs a `PhysicsWorld`'s simulation work.
+public enum JobSystemKind: Sendable {
+    /// SwiftJolt's own pool, whose threads run at user-interactive QoS. Jolt's pool runs at
+    /// default QoS, which causes priority inversions when updating from a higher-QoS thread.
+    /// `threadCount` defaults to one less than the number of active cores and must be at least 1.
+    case userInteractiveThreadPool(threadCount: Int? = nil, maxBarriers: Int = 8)
+    /// Jolt's built-in `JobSystemThreadPool`. `threadCount` nil lets Jolt pick (cores - 1);
+    /// 0 runs all work on the thread that calls `update`.
+    case joltThreadPool(threadCount: Int? = nil, maxJobs: Int = 2048, maxBarriers: Int = 8)
+
+    public static let `default` = Self.userInteractiveThreadPool()
+}
+
 final class JobThreadPool: @unchecked Sendable {
-    let threadCount = max(1, ProcessInfo.processInfo.activeProcessorCount - 1)
+    static let defaultThreadCount = max(1, ProcessInfo.processInfo.activeProcessorCount - 1)
+
+    let threadCount: Int
     private let condition = NSCondition()
     private var pending: [PooledJob] = []
     private var isShuttingDown = false
     private var runningThreads = 0
 
-    init() {
+    init(threadCount: Int = defaultThreadCount) {
+        // The calling thread only waits on Jolt's barriers, so jobs need at least one pool thread.
+        precondition(threadCount >= 1, "The job thread pool needs at least one thread")
+        self.threadCount = threadCount
         runningThreads = threadCount
         for index in 0..<threadCount {
             let thread = Thread { [self] in work() }
