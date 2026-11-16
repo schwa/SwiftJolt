@@ -50,6 +50,26 @@ extension JoltTests {
             #expect(world.angularVelocity(of: body).z < 0)
         }
 
+        @Test func buoyancyPushesSubmergedBodyUp() throws {
+            let (world, body) = try makeBox()
+            let gravity: SIMD3<Float> = [0, -9.81, 0]
+            let applied = world.applyBuoyancyImpulse(
+                to: body, surfacePosition: [0, 10, 0], surfaceNormal: [0, 1, 0],
+                buoyancy: 2, linearDrag: 0, angularDrag: 0, gravity: gravity, deltaTime: 1.0 / 60.0
+            )
+            #expect(applied)
+            #expect(world.linearVelocity(of: body).y > 0)
+
+            let dry = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]), position: [0, 20, 0])
+            let notApplied = world.writeBody(dry) { locked in
+                locked.applyBuoyancyImpulse(
+                    surfacePosition: [0, 10, 0], surfaceNormal: [0, 1, 0],
+                    buoyancy: 2, linearDrag: 0, angularDrag: 0, gravity: gravity, deltaTime: 1.0 / 60.0
+                )
+            }
+            #expect(notApplied == false)
+        }
+
         @Test func angularImpulseSpinsWithoutMoving() throws {
             let (world, body) = try makeBox()
             world.addAngularImpulse(to: body, impulse: [0, 1, 0])

@@ -1321,12 +1321,13 @@ Unwrapped joltc API:
 ## 72: Buoyancy impulse is not exposed
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:37:20Z
+closed: 2026-11-16T23:37:20Z
 +++
 
 There is no Swift API for Jolt's ApplyBuoyancyImpulse, which simulates a body floating in a fluid volume.

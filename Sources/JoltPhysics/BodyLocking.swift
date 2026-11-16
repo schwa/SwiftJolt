@@ -169,6 +169,28 @@ public struct LockedBody: ~Copyable {
         JPH_Body_AddAngularImpulse(pointer, &i)
     }
 
+    /// Applies buoyancy and drag from a fluid whose surface is the plane through `surfacePosition` with `surfaceNormal`.
+    /// Returns false if the body is not in the fluid.
+    @discardableResult
+    public mutating func applyBuoyancyImpulse(
+        surfacePosition: SIMD3<Float>,
+        surfaceNormal: SIMD3<Float>,
+        buoyancy: Float,
+        linearDrag: Float,
+        angularDrag: Float,
+        fluidVelocity: SIMD3<Float> = .zero,
+        gravity: SIMD3<Float>,
+        deltaTime: Float
+    ) -> Bool {
+        var surfacePoint = JPH_RVec3(surfacePosition)
+        var normal = JPH_Vec3(surfaceNormal)
+        var velocity = JPH_Vec3(fluidVelocity)
+        var g = JPH_Vec3(gravity)
+        return JPH_Body_ApplyBuoyancyImpulse(
+            pointer, &surfacePoint, &normal, buoyancy, linearDrag, angularDrag, &velocity, &g, deltaTime
+        )
+    }
+
     /// Force added since the last step, not yet applied.
     public var accumulatedForce: SIMD3<Float> {
         var result = JPH_Vec3()

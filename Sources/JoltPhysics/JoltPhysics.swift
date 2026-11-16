@@ -648,6 +648,29 @@ public final class PhysicsWorld {
         JPH_BodyInterface_AddAngularImpulse(bodyInterface, body.rawValue, &imp)
     }
 
+    /// Applies buoyancy and drag from a fluid whose surface is the plane through `surfacePosition` with `surfaceNormal`.
+    /// Returns false if the body is not in the fluid.
+    @discardableResult
+    public func applyBuoyancyImpulse(
+        to body: BodyID,
+        surfacePosition: SIMD3<Float>,
+        surfaceNormal: SIMD3<Float>,
+        buoyancy: Float,
+        linearDrag: Float,
+        angularDrag: Float,
+        fluidVelocity: SIMD3<Float> = .zero,
+        gravity: SIMD3<Float>,
+        deltaTime: Float
+    ) -> Bool {
+        var position = JPH_RVec3(surfacePosition)
+        var normal = JPH_Vec3(surfaceNormal)
+        var velocity = JPH_Vec3(fluidVelocity)
+        var g = JPH_Vec3(gravity)
+        return JPH_BodyInterface_ApplyBuoyancyImpulse(
+            bodyInterface, body.rawValue, &position, &normal, buoyancy, linearDrag, angularDrag, &velocity, &g, deltaTime
+        )
+    }
+
     /// Applies a force for the next step, at the center of mass or at world-space `point` if given.
     public func addForce(to body: BodyID, force: SIMD3<Float>, at point: SIMD3<Float>? = nil) {
         var f = JPH_Vec3(force)
