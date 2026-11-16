@@ -2448,12 +2448,13 @@ Unwrapped joltc API:
 ## 101: Body lock multi-read is not wrapped
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:bodies, effort:s
 created: 2026-11-16T21:37:14Z
-updated: 2026-11-16T22:12:02Z
+updated: 2026-11-16T23:49:09Z
+closed: 2026-11-16T23:49:09Z
 +++
 
 Only multi-write locking is wrapped. Read-only multi-body locks are not.

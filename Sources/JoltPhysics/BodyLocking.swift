@@ -241,6 +241,21 @@ public struct LockedBody: ~Copyable {
     }
 }
 
+/// Bodies held under a multi-body read lock. Only valid inside `PhysicsWorld.readBodies`.
+public struct LockedBodies: ~Copyable {
+    let lock: OpaquePointer
+    public let count: Int
+
+    /// Runs `action` on the body at `index` in the list passed to `readBodies`. Returns nil if that body does not exist.
+    public func withBody<Result>(at index: Int, _ action: (borrowing LockedBody) throws -> Result) rethrows -> Result? {
+        precondition((0..<count).contains(index), "Body index out of range")
+        guard let pointer = JPH_BodyLockMultiRead_GetBody(lock, UInt32(index)) else {
+            return nil
+        }
+        return try action(LockedBody(pointer: pointer))
+    }
+}
+
 extension PhysicsWorld {
     /// Runs `action` with a read lock on `body`. Returns nil if the body does not exist.
     public func readBody<Result>(_ body: BodyID, _ action: (borrowing LockedBody) throws -> Result) rethrows -> Result? {
@@ -252,6 +267,14 @@ extension PhysicsWorld {
             return nil
         }
         return try action(LockedBody(pointer: pointer))
+    }
+
+    /// Runs `action` with read locks on all of `bodies` at once, so it sees them in one consistent state.
+    public func readBodies<Result>(_ bodies: [BodyID], _ action: (borrowing LockedBodies) throws -> Result) rethrows -> Result {
+        let ids = bodies.map(\.rawValue)
+        let lock = JPH_BodyLockInterface_LockMultiRead(bodyLockInterface, ids, UInt32(ids.count))!
+        defer { JPH_BodyLockMultiRead_Destroy(lock) }
+        return try action(LockedBodies(lock: lock, count: ids.count))
     }
 
     /// Runs `action` with a write lock on `body`. Returns nil if the body does not exist.

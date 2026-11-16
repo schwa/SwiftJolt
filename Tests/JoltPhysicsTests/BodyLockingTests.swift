@@ -21,6 +21,26 @@ extension JoltTests {
             #expect(simd_distance(state.6.max, [2, 4, 6]) < 1e-4)
         }
 
+        @Test func readBodiesLocksSeveralAtOnce() throws {
+            let world = try makeWorld()
+            let a = world.addBody(.sphere(radius: 1), position: [1, 0, 0])
+            let b = world.addBody(.sphere(radius: 1), position: [0, 2, 0])
+            let removed = world.addBody(.sphere(radius: 1))
+            world.removeBody(removed)
+            let result = world.readBodies([a, b, removed]) { bodies in
+                (
+                    bodies.count,
+                    bodies.withBody(at: 0) { $0.position },
+                    bodies.withBody(at: 1) { $0.id },
+                    bodies.withBody(at: 2) { $0.id }
+                )
+            }
+            #expect(result.0 == 3)
+            #expect(result.1 == [1, 0, 0])
+            #expect(result.2 == b)
+            #expect(result.3 == nil)
+        }
+
         @Test func readBodyReturnsNilForRemovedBody() throws {
             let world = try makeWorld()
             let body = world.addBody(.sphere(radius: 1))
