@@ -6,13 +6,23 @@ import simd
 /// Base class for constraints. Create constraints with the `PhysicsWorld.add…Constraint` methods.
 public class Constraint {
     let handle: OpaquePointer
+    // Set when another object (e.g. a Ragdoll) owns the Jolt constraint; keeps it alive and skips the release.
+    private let owner: AnyObject?
 
     init(handle: OpaquePointer) {
         self.handle = handle
+        owner = nil
+    }
+
+    init(handle: OpaquePointer, borrowedFrom owner: AnyObject) {
+        self.handle = handle
+        self.owner = owner
     }
 
     deinit {
-        JPH_Constraint_Destroy(handle)
+        if owner == nil {
+            JPH_Constraint_Destroy(handle)
+        }
     }
 
     public var isEnabled: Bool {

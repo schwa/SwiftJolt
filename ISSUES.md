@@ -2287,12 +2287,13 @@ Unwrapped joltc API:
 ## 96: Ragdoll API is incomplete
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:ragdolls, effort:s
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:46:38Z
+closed: 2026-11-16T23:46:38Z
 +++
 
 Some Ragdoll functions are not wrapped.
@@ -2302,6 +2303,8 @@ Unwrapped joltc API:
 - `JPH_Ragdoll_GetPose2`
 - `JPH_Skeleton_AddJoint`
 - `JPH_Skeleton_AddJoint3`
+
+- `2026-11-16T23:46:38Z`: Added Ragdoll.constraint(at:) (borrowed, keeps the ragdoll alive) and Ragdoll.jointMatrices (GetPose2). JPH_Skeleton_AddJoint/AddJoint3 not wrapped separately: Skeleton.addJoint(_:parent:) and addJoint(_:parentName:) already cover both via AddJoint2.
 
 ---
 

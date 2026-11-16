@@ -205,6 +205,25 @@ public final class Ragdoll {
         Int(JPH_Ragdoll_GetConstraintCount(handle))
     }
 
+    /// The joint joining a part to its parent. Index `i` usually belongs to part `i + 1`; see
+    /// `RagdollSettings` for the exact mapping. The ragdoll owns it, so it stays valid while the ragdoll lives.
+    public func constraint(at index: Int) -> Constraint {
+        precondition((0..<constraintCount).contains(index), "Constraint index out of range")
+        let constraintHandle = JPH_Ragdoll_GetConstraint(handle, Int32(index))!
+        if JPH_Constraint_GetSubType(constraintHandle) == JPH_ConstraintSubType_SwingTwist {
+            return SwingTwistConstraint(handle: constraintHandle, borrowedFrom: self)
+        }
+        return Constraint(handle: constraintHandle, borrowedFrom: self)
+    }
+
+    /// The root offset and per-joint world matrices of the bodies' current transforms.
+    public var jointMatrices: (rootOffset: SIMD3<Float>, matrices: [simd_float4x4]) {
+        var rootOffset = JPH_RVec3()
+        var matrices = [JPH_Mat4](repeating: JPH_Mat4(), count: bodyCount)
+        JPH_Ragdoll_GetPose2(handle, &rootOffset, &matrices, true)
+        return (rootOffset.simd, matrices.map(\.simd))
+    }
+
     public var rootTransform: (position: SIMD3<Float>, rotation: simd_quatf) {
         var position = JPH_RVec3()
         var rotation = JPH_Quat()

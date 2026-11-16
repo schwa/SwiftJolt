@@ -61,6 +61,27 @@ extension JoltTests {
             #expect(ragdoll.rootTransform.position.y < 7)
         }
 
+        @Test func exposesConstraintsAndJointMatrices() throws {
+            let world = try makeWorld()
+            var ragdoll: Ragdoll? = world.createRagdoll(makeRagdollSettings(engine: world.engine))
+            let constraint = try #require(ragdoll?.constraint(at: 1))
+            let swingTwist = try #require(constraint as? SwingTwistConstraint)
+            #expect(abs(swingTwist.normalHalfConeAngle - .pi / 4) < 1e-4)
+            let ids = try #require(ragdoll?.bodyIDs)
+            #expect(constraint.body1 == ids[1] && constraint.body2 == ids[2])
+            constraint.isEnabled = false
+            #expect(ragdoll?.constraint(at: 1).isEnabled == false)
+
+            let pose = try #require(ragdoll?.jointMatrices)
+            #expect(pose.matrices.count == 3)
+            let head = pose.matrices[2].columns.3
+            #expect(simd_distance(pose.rootOffset + SIMD3(head.x, head.y, head.z), [0, 2, 0]) < 1e-3)
+
+            // A borrowed constraint keeps the ragdoll alive and must not free Jolt's constraint.
+            ragdoll = nil
+            #expect(constraint.isEnabled == false)
+        }
+
         @Test func ragdollCollapsesOnFloor() throws {
             let world = try makeWorld()
             world.addBody(.box(halfExtents: [20, 0.5, 20]), position: [0, -0.5, 0], motionType: .static)
