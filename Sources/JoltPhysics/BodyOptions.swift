@@ -27,6 +27,9 @@ public struct BodyOptions: Sendable, Equatable {
     /// Solver iteration overrides. 0 uses the world's setting.
     public var velocityStepsOverride = 0
     public var positionStepsOverride = 0
+    /// nil picks `.nonMoving` for static bodies and `.moving` for the rest.
+    public var objectLayer: ObjectLayer?
+    public var collisionGroup: CollisionGroup = .ungrouped
 
     public init(
         linearVelocity: SIMD3<Float> = .zero,
@@ -46,7 +49,9 @@ public struct BodyOptions: Sendable, Equatable {
         useManifoldReduction: Bool = true,
         enhancedInternalEdgeRemoval: Bool = false,
         velocityStepsOverride: Int = 0,
-        positionStepsOverride: Int = 0
+        positionStepsOverride: Int = 0,
+        objectLayer: ObjectLayer? = nil,
+        collisionGroup: CollisionGroup = .ungrouped
     ) {
         if let mass {
             precondition(mass > 0, "Mass must be positive")
@@ -70,6 +75,8 @@ public struct BodyOptions: Sendable, Equatable {
         self.enhancedInternalEdgeRemoval = enhancedInternalEdgeRemoval
         self.velocityStepsOverride = velocityStepsOverride
         self.positionStepsOverride = positionStepsOverride
+        self.objectLayer = objectLayer
+        self.collisionGroup = collisionGroup
     }
 
     public static let `default` = Self()
@@ -94,6 +101,8 @@ public struct BodyOptions: Sendable, Equatable {
         JPH_BodyCreationSettings_SetEnhancedInternalEdgeRemoval(settings, enhancedInternalEdgeRemoval)
         JPH_BodyCreationSettings_SetNumVelocityStepsOverride(settings, UInt32(velocityStepsOverride))
         JPH_BodyCreationSettings_SetNumPositionStepsOverride(settings, UInt32(positionStepsOverride))
+        var group = collisionGroup.jph
+        JPH_BodyCreationSettings_SetCollisionGroup(settings, &group)
         if let mass {
             var properties = JPH_MassProperties()
             properties.mass = mass

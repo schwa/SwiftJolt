@@ -209,13 +209,6 @@ public enum MotionQuality: Sendable {
     }
 }
 
-// MARK: - ObjectLayer
-
-public enum ObjectLayer: JPH_ObjectLayer, Sendable {
-    case nonMoving = 0
-    case moving = 1
-}
-
 // MARK: - BodyID
 
 public struct BodyID: Sendable, Hashable {
@@ -306,6 +299,8 @@ public final class PhysicsWorld {
     private let jobSystem: OpaquePointer
     private let jobThreadPool = JobThreadPool()
     let bodyInterface: OpaquePointer
+    public let collisionLayers: CollisionLayers
+    var groupFilters: [OpaquePointer: CollisionGroupFilter] = [:]
 
     // Keep layer objects alive
     private let bpLayerInterface: OpaquePointer
@@ -336,20 +331,13 @@ public final class PhysicsWorld {
         gravity: SIMD3<Float> = [0, -9.81, 0],
         maxBodies: UInt32 = 10240,
         maxBodyPairs: UInt32 = 65536,
-        maxContactConstraints: UInt32 = 10240
+        maxContactConstraints: UInt32 = 10240,
+        collisionLayers: CollisionLayers = .default
     ) {
         self.engine = engine
+        self.collisionLayers = collisionLayers
 
-        // Layer setup: 2 layers (non-moving, moving)
-        let bpLI = JPH_BroadPhaseLayerInterfaceTable_Create(2, 2)!
-        JPH_BroadPhaseLayerInterfaceTable_MapObjectToBroadPhaseLayer(bpLI, 0, 0)
-        JPH_BroadPhaseLayerInterfaceTable_MapObjectToBroadPhaseLayer(bpLI, 1, 1)
-
-        let objFilter = JPH_ObjectLayerPairFilterTable_Create(2)!
-        JPH_ObjectLayerPairFilterTable_EnableCollision(objFilter, 0, 1) // static vs moving
-        JPH_ObjectLayerPairFilterTable_EnableCollision(objFilter, 1, 1) // moving vs moving
-
-        let bpF = JPH_ObjectVsBroadPhaseLayerFilterTable_Create(bpLI, 2, objFilter, 2)!
+        let (bpLI, objFilter, bpF) = collisionLayers.makeJoltFilters()
 
         self.bpLayerInterface = bpLI
         self.objectFilter = objFilter
@@ -425,7 +413,9 @@ public final class PhysicsWorld {
         let shapeHandle = shape.createHandle()
         // createHandle returns an owned reference; the body takes its own.
         defer { JPH_Shape_Destroy(shapeHandle) }
-        let layer: ObjectLayer = (motionType == .static) ? .nonMoving : .moving
+        let layer = options.objectLayer ?? ((motionType == .static) ? .nonMoving : .moving)
+        collisionLayers.checkLayer(layer)
+        registerGroupFilter(options.collisionGroup.filter)
 
         var pos = JPH_RVec3(position)
         var rot = JPH_Quat(rotation)

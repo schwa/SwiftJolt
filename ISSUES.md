@@ -1235,6 +1235,7 @@ Unwrapped joltc API (Body / BodyInterface):
 - `JPH_BodyInterface_SetUseManifoldReduction`
 
 - `2026-11-16T22:12:04Z`: Related: #75 (object layer get/set overlaps with custom collision layers).
+- `2026-11-16T22:38:46Z`: Object layer get/set was added with #75.
 
 ---
 
@@ -1374,12 +1375,13 @@ Unwrapped joltc API:
 ## 75: Collision filtering is fixed to two object layers
 
 +++
-status: open
+status: closed
 priority: high
 kind: feature
 labels: area:bodies, effort:l
 created: 2026-11-16T21:37:11Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T22:38:46Z
+closed: 2026-11-16T22:38:46Z
 +++
 
 PhysicsWorld hardcodes two object layers (moving, nonMoving) and a fixed broad-phase mapping. Apps cannot define their own layers or which layers collide, and there are no collision groups.
@@ -1411,6 +1413,7 @@ Unwrapped joltc API:
 - `JPH_SoftBodyCreationSettings_SetCollisionGroup`
 
 - `2026-11-16T22:12:04Z`: Related: #69 (changing a body's object layer after creation).
+- `2026-11-16T22:38:46Z`: Added CollisionLayers (custom object layers, pair table, static layers) as a PhysicsWorld init parameter; ObjectLayer is now an open struct; BodyOptions.objectLayer/collisionGroup; objectLayer(of:)/setObjectLayer and collisionGroup(of:)/setCollisionGroup; CollisionGroupFilter wraps GroupFilterTable. Not wrapped: Jolt's bit-mask filter variants (ObjectLayerPairFilterMask etc.), since the table covers the same cases. Characters, vehicles, soft bodies and ragdolls still always use .moving.
 
 ---
 
