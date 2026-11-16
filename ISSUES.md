@@ -1358,6 +1358,7 @@ Unwrapped joltc API:
 - `JPH_PhysicsSystem_ActivateBodiesInAABox`
 
 - `2026-11-16T22:41:45Z`: isActive(_:) was added with #70.
+- `2026-11-16T23:10:19Z`: activateBodies(inBoxFrom:to:layer:) was added with #83.
 
 ---
 
@@ -1726,12 +1727,13 @@ Unwrapped joltc API:
 ## 83: PhysicsWorld can't enumerate bodies/constraints or change physics settings
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:api, effort:m
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:10:19Z
+closed: 2026-11-16T23:10:19Z
 +++
 
 PhysicsWorld has no way to list all or active bodies, list constraints, get max bodies, add/remove constraints in bulk, check whether two bodies touched, or read/write PhysicsSettings (solver iterations, baumgarte, sleep thresholds, etc.).
@@ -1752,6 +1754,8 @@ Unwrapped joltc API:
 - `JPH_PhysicsSystem_SetPhysicsSettings`
 - `JPH_PhysicsSystem_SetSimShapeFilter`
 - `JPH_PhysicsSystem_WereBodiesInContact`
+
+- `2026-11-16T23:10:19Z`: Added PhysicsSettings and PhysicsWorld.settings (get/set), maxBodies, bodies, activeBodies, allConstraints, wereBodiesInContact(_:_:), activateBodies(inBoxFrom:to:layer:). Not wrapped: bulk AddConstraints/RemoveConstraints (Swift adds constraints one at a time), DrawConstraint* (belongs with #97), SetSimShapeFilter, GetBodyInterfaceNoLock (used internally for step listeners).
 
 ---
 
