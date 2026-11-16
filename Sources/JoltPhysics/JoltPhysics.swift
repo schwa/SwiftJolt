@@ -65,11 +65,13 @@ public enum Shape: Sendable {
     case empty(centerOfMass: SIMD3<Float> = .zero)
     /// A triangle mesh. `indices` holds three vertex indices per triangle, counter-clockwise when
     /// seen from the front. Jolt only supports mesh shapes on static and kinematic bodies.
-    case mesh(vertices: [SIMD3<Float>], indices: [UInt32])
+    case mesh(vertices: [SIMD3<Float>], indices: [UInt32], options: MeshOptions = .init())
+    // swiftlint:disable enum_case_associated_values_count
     /// A square grid of heights. `samples` has `sampleCount * sampleCount` entries, row by row along Z.
     /// Sample `(x, z)` sits at local position `offset + scale * (x, samples[z * sampleCount + x], z)`.
-    /// `sampleCount` must be a multiple of 2. Static and kinematic bodies only.
-    case heightField(samples: [Float], sampleCount: Int, offset: SIMD3<Float> = .zero, scale: SIMD3<Float> = .one)
+    /// `sampleCount` must be a multiple of `options.blockSize` (2 by default). Static and kinematic bodies only.
+    case heightField(samples: [Float], sampleCount: Int, offset: SIMD3<Float> = .zero, scale: SIMD3<Float> = .one, options: HeightFieldOptions = .init())
+    // swiftlint:enable enum_case_associated_values_count
     /// An infinite-looking ground plane: the surface where `dot(normal, p) == offset`, solid on the
     /// side opposite `normal`. `halfExtent` bounds it for the broad phase. Static bodies only.
     case plane(normal: SIMD3<Float> = [0, 1, 0], offset: Float = 0, halfExtent: Float = 1000, material: PhysicsMaterial? = nil)
@@ -141,24 +143,34 @@ public enum Shape: Sendable {
             let settings = JPH_EmptyShapeSettings_Create(&jphCenterOfMass)!
             defer { JPH_ShapeSettings_Destroy(settings) }
             return JPH_EmptyShapeSettings_CreateShape(settings)!
-        case .mesh(let vertices, let indices):
+        case .mesh(let vertices, let indices, let options):
             precondition(indices.count.isMultiple(of: 3), "Mesh indices must come in groups of three")
             precondition(indices.allSatisfy { Int($0) < vertices.count }, "Mesh index out of range")
+            let userData = options.triangleUserData
+            precondition(userData.isEmpty || userData.count == indices.count / 3, "Need one triangleUserData value per triangle")
             let jphVertices = vertices.map(JPH_Vec3.init)
             let triangles = stride(from: 0, to: indices.count, by: 3).map { index in
-                JPH_IndexedTriangle(i1: indices[index], i2: indices[index + 1], i3: indices[index + 2], materialIndex: 0, userData: 0)
+                JPH_IndexedTriangle(
+                    i1: indices[index], i2: indices[index + 1], i3: indices[index + 2],
+                    materialIndex: 0, userData: userData.isEmpty ? 0 : userData[index / 3]
+                )
             }
             let settings = JPH_MeshShapeSettings_Create2(jphVertices, UInt32(jphVertices.count), triangles, UInt32(triangles.count))!
             defer { JPH_ShapeSettings_Destroy(settings) }
+            options.apply(to: settings)
             JPH_MeshShapeSettings_Sanitize(settings)
             return JPH_MeshShapeSettings_CreateShape(settings)!
-        case .heightField(let samples, let sampleCount, let offset, let scale):
+        case .heightField(let samples, let sampleCount, let offset, let scale, let options):
             precondition(samples.count == sampleCount * sampleCount, "Height field needs sampleCount * sampleCount samples")
-            precondition(sampleCount >= 2 && sampleCount.isMultiple(of: 2), "Height field sampleCount must be a multiple of 2")
+            precondition(
+                sampleCount >= options.blockSize && sampleCount.isMultiple(of: options.blockSize),
+                "Height field sampleCount must be a multiple of blockSize (\(options.blockSize))"
+            )
             var jphOffset = JPH_Vec3(offset)
             var jphScale = JPH_Vec3(scale)
             let settings = JPH_HeightFieldShapeSettings_Create(samples, &jphOffset, &jphScale, UInt32(sampleCount), nil)!
             defer { JPH_ShapeSettings_Destroy(settings) }
+            options.apply(to: settings)
             return JPH_HeightFieldShapeSettings_CreateShape(settings)!
         case .plane(let normal, let offset, let halfExtent, let material):
             // Jolt stores the plane as dot(normal, p) + constant == 0.

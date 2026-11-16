@@ -1655,12 +1655,13 @@ Unwrapped joltc API:
 ## 81: Shape settings options are not exposed
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:shapes, effort:m
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:51:48Z
+closed: 2026-11-16T23:51:48Z
 +++
 
 Shapes are built with fixed defaults. Settings such as density, convex radius, mesh options and height field block size, bits per sample and active-edge threshold cannot be set.
@@ -1712,6 +1713,8 @@ Unwrapped joltc API:
 - `JPH_SphereShapeSettings_SetRadius`
 - `JPH_TriangleShapeSettings_Create`
 - `JPH_TriangleShapeSettings_CreateShape`
+
+- `2026-11-16T23:51:48Z`: Added MeshOptions (active edge threshold, max triangles per leaf, build quality, per-triangle user data + PhysicsWorld.triangleUserData(of:at:)) and HeightFieldOptions (block size, bits per sample, active edge threshold, fixed height range, bitsPerSample(forMaxError:...)). Not wrapped: the per-shape *Settings_Create/CreateShape variants for box/sphere/capsule/cylinder/plane/triangle and compound AddShape (Shape already builds these via the direct constructors), settings getters (options are Swift values), HeightField offset/scale/sampleCount setters (already case parameters), DetermineMinAndMaxSample, ShapeSettings user data, and ConvexShapeSettings density (Material.density already scales body mass). Open a new issue if per-shape density inside compounds is needed.
 
 ---
 

@@ -169,6 +169,41 @@ extension JoltTests {
             #expect(world.castRay(origin: [10, 10, 0], direction: [0, -20, 0]) == nil)
         }
 
+        @Test func meshTriangleUserDataIsReadable() throws {
+            let world = try makeWorld()
+            let tagged = Shape.mesh(
+                vertices: [[-5, 0, -5], [-5, 0, 5], [5, 0, 5], [5, 0, -5]],
+                indices: [0, 1, 2, 0, 2, 3],
+                options: MeshOptions(maxTrianglesPerLeaf: 4, buildQuality: .favorBuildSpeed, triangleUserData: [7, 9])
+            )
+            // Wrapped, so the lookup has to find the mesh leaf.
+            let body = world.addBody(.rotatedTranslated(tagged, position: [0, 1, 0]), motionType: .static)
+            let first = try #require(world.castRay(origin: [-2, 5, 2], direction: [0, -10, 0]))
+            let second = try #require(world.castRay(origin: [2, 5, -2], direction: [0, -10, 0]))
+            #expect(world.triangleUserData(of: body, at: first.subShape) == 7)
+            #expect(world.triangleUserData(of: body, at: second.subShape) == 9)
+
+            let ball = world.addBody(.sphere(radius: 1), position: [20, 0, 0], motionType: .static)
+            let ballHit = try #require(world.castRay(origin: [20, 5, 0], direction: [0, -10, 0]))
+            #expect(world.triangleUserData(of: ball, at: ballHit.subShape) == nil)
+        }
+
+        @Test func heightFieldOptionsApply() throws {
+            let count = 8
+            let samples = (0..<count * count).map { Float($0 % count) / 2 }
+            // One bit per sample cannot represent the ramp; heights snap to coarse steps.
+            let coarse = Shape.heightField(samples: samples, sampleCount: count, offset: [-4, 0, -4], options: HeightFieldOptions(blockSize: 4, bitsPerSample: 1))
+            let world = try makeWorld()
+            world.addBody(coarse, motionType: .static)
+            let hit = try #require(world.castRay(origin: [0, 10, 0], direction: [0, -20, 0]))
+            #expect(abs(hit.position.y - 2) > 0.05)
+
+            let precise = HeightFieldOptions.bitsPerSample(forMaxError: 0.01, samples: samples, sampleCount: count)
+            let rough = HeightFieldOptions.bitsPerSample(forMaxError: 10, samples: samples, sampleCount: count)
+            #expect((1...8).contains(precise))
+            #expect(rough < precise)
+        }
+
         @Test func ballRollsDownHeightField() throws {
             let world = try makeWorld()
             world.addBody(rampHeightField, motionType: .static)
