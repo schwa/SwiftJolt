@@ -1818,12 +1818,13 @@ Unwrapped joltc API:
 ## 86: Physics material only covers friction/restitution/density
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:materials, effort:s
 created: 2026-11-16T21:37:12Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:44:40Z
+closed: 2026-11-16T23:44:40Z
 +++
 
 Jolt's PhysicsMaterial object (per-triangle materials with name and debug color) is not wrapped.
@@ -1832,6 +1833,8 @@ Unwrapped joltc API:
 - `JPH_PhysicsMaterial_Create`
 - `JPH_PhysicsMaterial_Destroy`
 - `JPH_PhysicsMaterial_GetDebugColor`
+
+- `2026-11-16T23:44:40Z`: Added PhysicsMaterial (name + debug color), material: on .plane and .taperedCylinder (the only shapes joltc lets take one), PhysicsWorld.physicsMaterial(of:at:) and RayHit.subShape. Per-triangle mesh materials are not possible: joltc has no API to give a mesh shape a material list.
 
 ---
 

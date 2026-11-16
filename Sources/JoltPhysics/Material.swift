@@ -24,7 +24,35 @@ public struct Material: Sendable, Equatable {
     public static let ice = Self(friction: 0.02, restitution: 0.1, density: 917)
 }
 
+/// Jolt's per-surface material tag. It only carries a name and a debug color; friction and
+/// restitution live on the body (see `Material`). Plane and tapered cylinder shapes accept one.
+public struct PhysicsMaterial: Sendable, Hashable {
+    public var name: String
+    public var debugColor: DebugColor
+
+    public init(name: String, debugColor: DebugColor = DebugColor(red: 128, green: 128, blue: 128)) {
+        self.name = name
+        self.debugColor = debugColor
+    }
+
+    init(_ handle: OpaquePointer) {
+        name = String(cString: JPH_PhysicsMaterial_GetDebugName(handle))
+        debugColor = DebugColor(JPH_PhysicsMaterial_GetDebugColor(handle))
+    }
+
+    /// Returns a +1 reference; release it with `JPH_PhysicsMaterial_Destroy`.
+    func createHandle() -> OpaquePointer {
+        JPH_PhysicsMaterial_Create(name, debugColor.jph)!
+    }
+}
+
 extension PhysicsWorld {
+    /// The material of the part of `body` identified by `subShape`, e.g. from `RayHit.subShape` or
+    /// `Contact.subShapeID1`. Shapes without a material report Jolt's default material.
+    public func physicsMaterial(of body: BodyID, at subShape: SubShapeID) -> PhysicsMaterial? {
+        JPH_BodyInterface_GetMaterial(bodyInterface, body.rawValue, subShape.rawValue).map(PhysicsMaterial.init)
+    }
+
     /// Add a body using a material's friction, restitution, and density.
     @discardableResult
     public func addBody(

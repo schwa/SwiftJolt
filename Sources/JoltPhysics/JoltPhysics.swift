@@ -57,8 +57,10 @@ public enum Shape: Sendable {
     case taperedCapsule(halfHeight: Float, topRadius: Float, bottomRadius: Float)
     /// A cylinder along the Y axis.
     case cylinder(halfHeight: Float, radius: Float)
+    // swiftlint:disable enum_case_associated_values_count
     /// A cylinder along the Y axis with different top and bottom radii.
-    case taperedCylinder(halfHeight: Float, topRadius: Float, bottomRadius: Float, convexRadius: Float = 0.05)
+    case taperedCylinder(halfHeight: Float, topRadius: Float, bottomRadius: Float, convexRadius: Float = 0.05, material: PhysicsMaterial? = nil)
+    // swiftlint:enable enum_case_associated_values_count
     /// A shape with no collision geometry, for bodies that only exist to be constrained or moved.
     case empty(centerOfMass: SIMD3<Float> = .zero)
     /// A triangle mesh. `indices` holds three vertex indices per triangle, counter-clockwise when
@@ -70,7 +72,7 @@ public enum Shape: Sendable {
     case heightField(samples: [Float], sampleCount: Int, offset: SIMD3<Float> = .zero, scale: SIMD3<Float> = .one)
     /// An infinite-looking ground plane: the surface where `dot(normal, p) == offset`, solid on the
     /// side opposite `normal`. `halfExtent` bounds it for the broad phase. Static bodies only.
-    case plane(normal: SIMD3<Float> = [0, 1, 0], offset: Float = 0, halfExtent: Float = 1000)
+    case plane(normal: SIMD3<Float> = [0, 1, 0], offset: Float = 0, halfExtent: Float = 1000, material: PhysicsMaterial? = nil)
     /// A single triangle. Static and kinematic bodies only.
     case triangle(SIMD3<Float>, SIMD3<Float>, SIMD3<Float>)
     /// The convex hull of `points`. Needs at least 4 points that are not all on one plane.
@@ -125,8 +127,10 @@ public enum Shape: Sendable {
             return shape
         case .cylinder(let halfHeight, let radius):
             return JPH_CylinderShape_Create(halfHeight, radius)!
-        case .taperedCylinder(let halfHeight, let topRadius, let bottomRadius, let convexRadius):
-            let settings = JPH_TaperedCylinderShapeSettings_Create(halfHeight, topRadius, bottomRadius, convexRadius, nil)!
+        case .taperedCylinder(let halfHeight, let topRadius, let bottomRadius, let convexRadius, let material):
+            let materialHandle = material?.createHandle()
+            defer { JPH_PhysicsMaterial_Destroy(materialHandle) }
+            let settings = JPH_TaperedCylinderShapeSettings_Create(halfHeight, topRadius, bottomRadius, convexRadius, materialHandle)!
             defer { JPH_ShapeSettings_Destroy(settings) }
             guard let shape = JPH_TaperedCylinderShapeSettings_CreateShape(settings) else {
                 preconditionFailure("Invalid tapered cylinder: halfHeight \(halfHeight), radii \(topRadius)/\(bottomRadius)")
@@ -156,10 +160,12 @@ public enum Shape: Sendable {
             let settings = JPH_HeightFieldShapeSettings_Create(samples, &jphOffset, &jphScale, UInt32(sampleCount), nil)!
             defer { JPH_ShapeSettings_Destroy(settings) }
             return JPH_HeightFieldShapeSettings_CreateShape(settings)!
-        case .plane(let normal, let offset, let halfExtent):
+        case .plane(let normal, let offset, let halfExtent, let material):
             // Jolt stores the plane as dot(normal, p) + constant == 0.
             var plane = JPH_Plane(normal: simd_normalize(normal), distance: -offset)
-            return JPH_PlaneShape_Create(&plane, nil, halfExtent)!
+            let materialHandle = material?.createHandle()
+            defer { JPH_PhysicsMaterial_Destroy(materialHandle) }
+            return JPH_PlaneShape_Create(&plane, materialHandle, halfExtent)!
         case .triangle(let v1, let v2, let v3):
             var a = JPH_Vec3(v1)
             var b = JPH_Vec3(v2)
@@ -252,6 +258,9 @@ public struct RayHit: Sendable, Hashable {
     public var position: SIMD3<Float>
     /// Which part of a compound or mesh shape was hit. Used by `PhysicsWorld.surfaceNormal(at:)`.
     var subShapeID: JPH_SubShapeID
+
+    /// Which part of the body's shape was hit.
+    public var subShape: SubShapeID { SubShapeID(rawValue: subShapeID) }
 
     init(_ result: JPH_RayCastResult, origin: SIMD3<Float>, direction: SIMD3<Float>) {
         body = BodyID(rawValue: result.bodyID)

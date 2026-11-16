@@ -11,6 +11,30 @@ extension JoltTests {
             #expect(world.restitution(of: body) == Material.rubber.restitution)
         }
 
+        @Test func surfaceMaterialIsReportedAtHit() throws {
+            let world = try makeWorld()
+            let grass = PhysicsMaterial(name: "grass", debugColor: DebugColor(red: 10, green: 200, blue: 30))
+            let ground = world.addBody(.plane(material: grass), motionType: .static)
+            let post = world.addBody(
+                .taperedCylinder(halfHeight: 1, topRadius: 0.2, bottomRadius: 0.4, material: PhysicsMaterial(name: "wood")),
+                position: [5, 1, 0],
+                motionType: .static
+            )
+            let groundHit = try #require(world.castRay(origin: [0, 5, 0], direction: [0, -10, 0]))
+            #expect(groundHit.body == ground)
+            #expect(world.physicsMaterial(of: ground, at: groundHit.subShape) == grass)
+            let postHit = try #require(world.castRay(origin: [5, 5, 0], direction: [0, -10, 0]))
+            #expect(postHit.body == post)
+            #expect(world.physicsMaterial(of: post, at: postHit.subShape)?.name == "wood")
+        }
+
+        @Test func shapesWithoutMaterialReportDefault() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.sphere(radius: 1), motionType: .static)
+            let hit = try #require(world.castRay(origin: [0, 5, 0], direction: [0, -10, 0]))
+            #expect(world.physicsMaterial(of: body, at: hit.subShape) != nil)
+        }
+
         @Test func densityScalesMass() throws {
             let world = try makeWorld()
             let shape = Shape.box(halfExtents: [0.5, 0.5, 0.5])

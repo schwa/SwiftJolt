@@ -22,6 +22,10 @@ public struct DebugColor: Sendable, Hashable {
         alpha = UInt8(truncatingIfNeeded: color >> 24)
     }
 
+    var jph: JPH_Color {
+        JPH_Color(red) | JPH_Color(green) << 8 | JPH_Color(blue) << 16 | JPH_Color(alpha) << 24
+    }
+
     /// Components in 0...1.
     public var simd: SIMD4<Float> {
         SIMD4(Float(red), Float(green), Float(blue), Float(alpha)) / 255
