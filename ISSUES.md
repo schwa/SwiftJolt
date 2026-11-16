@@ -505,12 +505,13 @@ updated: 2026-10-14T20:09:36Z
 ## 36: Wrap physics materials
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: effort:m, area:materials
 created: 2026-04-14T23:33:57Z
-updated: 2026-10-14T20:32:07Z
+updated: 2026-11-16T20:10:01Z
+closed: 2026-11-16T20:10:01Z
 +++
 
 - `2026-10-14T20:32:07Z`: Tried wrapping JPH_PhysicsMaterial. Punting: in Jolt a PhysicsMaterial only carries a debug name and colour (friction/restitution are per body), and joltc can only attach a material to PlaneShape and TaperedCylinderShape — not box, sphere, capsule, cylinder, convex hull, mesh triangles or height-field cells. Question: should this issue mean (a) Jolt's material tags, which would need joltc patches for most shapes, or (b) a Swift-side 'material' preset for friction/restitution/density applied in addBody? (b) is doable now.
