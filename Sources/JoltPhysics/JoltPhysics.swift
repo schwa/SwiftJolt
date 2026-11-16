@@ -185,6 +185,14 @@ public enum MotionType: Sendable {
     case kinematic
     case dynamic
 
+    init(_ jph: JPH_MotionType) {
+        switch jph {
+        case JPH_MotionType_Static: self = .static
+        case JPH_MotionType_Kinematic: self = .kinematic
+        default: self = .dynamic
+        }
+    }
+
     var jph: JPH_MotionType {
         switch self {
         case .static: return JPH_MotionType_Static

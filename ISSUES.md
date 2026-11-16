@@ -1196,12 +1196,13 @@ Unwrapped joltc API:
 ## 69: Body properties can't be changed after creation
 
 +++
-status: open
+status: closed
 priority: medium
 kind: feature
 labels: area:bodies, effort:m
 created: 2026-11-16T21:37:10Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-16T23:07:40Z
+closed: 2026-11-16T23:07:40Z
 +++
 
 After addBody, there is no way to change a body's shape, motion type, object layer, or several runtime flags, and some state cannot be read back.
@@ -1245,6 +1246,7 @@ Unwrapped joltc API (Body / BodyInterface):
 
 - `2026-11-16T22:12:04Z`: Related: #75 (object layer get/set overlaps with custom collision layers).
 - `2026-11-16T22:38:46Z`: Object layer get/set was added with #75.
+- `2026-11-16T23:07:40Z`: Added PhysicsWorld motionType(of:)/setMotionType(of:to:activate:), setShape(of:to:updateMassProperties:activate:), isSoftBody(_:), invalidateContactCache(of:); LockedBody isSoftBody, isInBroadPhase, canBeKinematicOrDynamic, and get/set for allowSleeping, applyGyroscopicForce, collideKinematicVsNonDynamic, useManifoldReduction, enhancedInternalEdgeRemoval. Object layer get/set came with #75, isActive with #70. Skipped as redundant: IsStatic/IsKinematic/IsDynamic/IsRigidBody (use motionType / isSoftBody).
 
 ---
 

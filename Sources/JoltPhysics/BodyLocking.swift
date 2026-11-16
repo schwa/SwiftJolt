@@ -41,11 +41,45 @@ public struct LockedBody: ~Copyable {
     }
 
     public var motionType: MotionType {
-        switch JPH_Body_GetMotionType(pointer) {
-        case JPH_MotionType_Static: return .static
-        case JPH_MotionType_Kinematic: return .kinematic
-        default: return .dynamic
-        }
+        MotionType(JPH_Body_GetMotionType(pointer))
+    }
+
+    public var isSoftBody: Bool {
+        JPH_Body_IsSoftBody(pointer)
+    }
+
+    public var isInBroadPhase: Bool {
+        JPH_Body_IsInBroadPhase(pointer)
+    }
+
+    /// True when the body was created with `BodyOptions.allowDynamicOrKinematic` or is not static.
+    public var canBeKinematicOrDynamic: Bool {
+        JPH_Body_CanBeKinematicOrDynamic(pointer)
+    }
+
+    public var allowSleeping: Bool {
+        get { JPH_Body_GetAllowSleeping(pointer) }
+        set { JPH_Body_SetAllowSleeping(pointer, newValue) }
+    }
+
+    public var applyGyroscopicForce: Bool {
+        get { JPH_Body_GetApplyGyroscopicForce(pointer) }
+        set { JPH_Body_SetApplyGyroscopicForce(pointer, newValue) }
+    }
+
+    public var collideKinematicVsNonDynamic: Bool {
+        get { JPH_Body_GetCollideKinematicVsNonDynamic(pointer) }
+        set { JPH_Body_SetCollideKinematicVsNonDynamic(pointer, newValue) }
+    }
+
+    public var useManifoldReduction: Bool {
+        get { JPH_Body_GetUseManifoldReduction(pointer) }
+        set { JPH_Body_SetUseManifoldReduction(pointer, newValue) }
+    }
+
+    public var enhancedInternalEdgeRemoval: Bool {
+        get { JPH_Body_GetEnhancedInternalEdgeRemoval(pointer) }
+        set { JPH_Body_SetEnhancedInternalEdgeRemoval(pointer, newValue) }
     }
 
     public var isActive: Bool {

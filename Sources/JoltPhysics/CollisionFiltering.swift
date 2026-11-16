@@ -171,6 +171,37 @@ extension PhysicsWorld {
         JPH_BodyInterface_SetObjectLayer(bodyInterface, body.rawValue, layer.rawValue)
     }
 
+    public func motionType(of body: BodyID) -> MotionType {
+        MotionType(JPH_BodyInterface_GetMotionType(bodyInterface, body.rawValue))
+    }
+
+    /// A body created static can only change if it was created with `BodyOptions.allowDynamicOrKinematic`.
+    /// The object layer is not changed; see `setObjectLayer(of:to:)`.
+    public func setMotionType(of body: BodyID, to motionType: MotionType, activate: Bool = true) {
+        if motionType != .static {
+            let allowed = readBody(body) { $0.canBeKinematicOrDynamic }
+            precondition(allowed == true, "Body \(body.rawValue) was created static without allowDynamicOrKinematic")
+        }
+        JPH_BodyInterface_SetMotionType(bodyInterface, body.rawValue, motionType.jph, activate ? JPH_Activation_Activate : JPH_Activation_DontActivate)
+    }
+
+    public func isSoftBody(_ body: BodyID) -> Bool {
+        JPH_BodyInterface_GetBodyType(bodyInterface, body.rawValue) == JPH_BodyType_Soft
+    }
+
+    /// Replaces the body's shape. With `updateMassProperties`, mass and inertia are recomputed from the new shape.
+    public func setShape(of body: BodyID, to shape: Shape, updateMassProperties: Bool = true, activate: Bool = true) {
+        let handle = shape.createHandle()
+        // createHandle returns an owned reference; the body takes its own.
+        defer { JPH_Shape_Destroy(handle) }
+        JPH_BodyInterface_SetShape(bodyInterface, body.rawValue, handle, updateMassProperties, activate ? JPH_Activation_Activate : JPH_Activation_DontActivate)
+    }
+
+    /// Drops cached contacts so they are recomputed next step, e.g. after changing friction.
+    public func invalidateContactCache(of body: BodyID) {
+        JPH_BodyInterface_InvalidateContactCache(bodyInterface, body.rawValue)
+    }
+
     /// See `BodyOptions.userData`.
     public func userData(of body: BodyID) -> UInt64 {
         JPH_BodyInterface_GetUserData(bodyInterface, body.rawValue)
