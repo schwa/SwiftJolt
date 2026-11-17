@@ -1002,12 +1002,13 @@ Default protocol methods and debug-renderer helpers are never run by tests:
 ## 63: Misc public API and early-return paths have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:api
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:04:53Z
+closed: 2026-11-17T00:04:53Z
 +++
 
 Uncovered public API:
@@ -1016,6 +1017,8 @@ Uncovered public API:
 - SkeletonPose.jointMatrices setter (SkeletonPose.swift 81-85)
 
 Uncovered guard/early-return lines: JoltPhysics.swift 27, 357, 364, 652, 707, 747, 769; BroadPhaseQueries.swift 49; Ragdoll.swift 168, 176.
+
+- `2026-11-17T00:04:53Z`: Covered optimizeBroadPhase, Ragdoll.activate, SkeletonPose.jointMatrices setter, and Ragdoll addToWorld/removeFromWorld early returns. Left uncovered: the JPH_Init failure branch in JoltEngine and the nil-argument guards inside C collector/job callbacks (JoltPhysics.swift, BroadPhaseQueries.swift). Jolt never passes nil there and Init failure can't be triggered from a test; they are defensive only.
 
 ---
 

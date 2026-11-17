@@ -79,6 +79,14 @@ extension JoltTests {
             #expect(world.bodyCount == 0)
         }
 
+        @Test func optimizeBroadPhaseKeepsQueriesWorking() throws {
+            let world = try makeWorld()
+            let bodies = (0..<50).map { world.addBody(.sphere(radius: 0.4), position: [Float($0), 0, 0], motionType: .static) }
+            world.optimizeBroadPhase()
+            #expect(world.castRay(origin: [10, 5, 0], direction: [0, -10, 0])?.body == bodies[10])
+            #expect(world.broadPhase.bodies(containing: [20, 0, 0]).contains(bodies[20]))
+        }
+
         @Test func createBodyWithChosenID() throws {
             let world = try makeWorld()
             let id = BodyID(rawValue: 42)

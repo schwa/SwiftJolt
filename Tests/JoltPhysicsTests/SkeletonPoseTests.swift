@@ -15,6 +15,18 @@ extension JoltTests {
             #expect(pose.jointMatrices.count == 4)
         }
 
+        @Test func jointMatricesSetterUpdatesStates() throws {
+            let pose = SkeletonPose(skeleton: try makeSkeleton())
+            var matrices = [simd_float4x4](repeating: matrix_identity_float4x4, count: 4)
+            matrices[0].columns.3 = [0, 1, 0, 1]
+            matrices[1].columns.3 = [0, 1.5, 0, 1]
+            pose.jointMatrices = matrices
+            #expect(pose.jointMatrices[1].columns.3 == [0, 1.5, 0, 1])
+            pose.calculateJointStates()
+            // The spine is 0.5 above its parent.
+            #expect(isClose(pose.jointState(at: 1).translation, [0, 0.5, 0]))
+        }
+
         @Test func statesRoundTripThroughMatrices() throws {
             let pose = SkeletonPose(skeleton: try makeSkeleton())
             let turn = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])

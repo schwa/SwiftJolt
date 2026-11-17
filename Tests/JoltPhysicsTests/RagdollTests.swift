@@ -48,6 +48,24 @@ extension JoltTests {
             #expect(settings.constraintIndex(forBodyIndex: 2) == 1)
         }
 
+        @Test func addAndRemoveAreIdempotentAndActivateWakes() throws {
+            let world = try makeWorld()
+            let ragdoll = world.createRagdoll(makeRagdollSettings(engine: world.engine))
+            ragdoll.removeFromWorld()
+            #expect(!ragdoll.isInWorld)
+            ragdoll.addToWorld(activate: false)
+            ragdoll.addToWorld()
+            #expect(ragdoll.isInWorld)
+            #expect(world.bodyCount == 3)
+            #expect(!ragdoll.isActive)
+            ragdoll.activate()
+            #expect(ragdoll.isActive)
+            ragdoll.removeFromWorld()
+            ragdoll.removeFromWorld()
+            #expect(!ragdoll.isInWorld)
+            #expect(ragdoll.bodyIDs.allSatisfy { !world.isAdded($0) })
+        }
+
         @Test func ragdollFalls() throws {
             let world = try makeWorld()
             let ragdoll = world.createRagdoll(makeRagdollSettings(engine: world.engine, base: [0, 10, 0]))
