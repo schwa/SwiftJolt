@@ -957,12 +957,13 @@ Uncovered lines: 130, 267-268, 296, 302, 308, 535-590, 702-705, 749-750, 784, 79
 ## 61: Vehicle input getters, wheel transforms, and pitch/roll setter have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:vehicles
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:03:23Z
+closed: 2026-11-17T00:03:23Z
 +++
 
 Vehicles.swift is at 82.2% and TrackedVehicle.swift at 87.6% line coverage. No tests use:
@@ -973,6 +974,8 @@ Vehicles.swift is at 82.2% and TrackedVehicle.swift at 87.6% line coverage. No t
 - early return at Vehicles.swift:77
 
 Uncovered lines: Vehicles.swift 77, 116-128, 207-235; TrackedVehicle.swift 56-58, 68-74.
+
+- `2026-11-17T00:03:23Z`: Covered all listed accessors. Not covered: the early return in Vehicle.wake() when the world is gone; reaching it means using a vehicle after its world is released, which currently crashes (#103).
 
 ---
 

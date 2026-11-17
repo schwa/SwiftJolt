@@ -146,6 +146,58 @@ extension JoltTests {
             #expect(stiff < soft * 0.8, "soft \(soft), stiff \(stiff)")
         }
 
+        @Test func wheeledInputPropertiesDriveCar() throws {
+            let (world, body, car) = try makeCar()
+            simulate(world, seconds: 1)
+            car.forwardInput = 1
+            car.rightInput = 0.5
+            car.brakeInput = 0
+            car.handBrakeInput = 0
+            #expect(car.forwardInput == 1)
+            #expect(car.rightInput == 0.5)
+            #expect(car.brakeInput == 0)
+            #expect(car.handBrakeInput == 0)
+            simulate(world, seconds: 2)
+            #expect(world.position(of: body).z > 1)
+            car.brakeInput = 1
+            car.handBrakeInput = 1
+            #expect(car.brakeInput == 1 && car.handBrakeInput == 1)
+        }
+
+        @Test func wheelWorldTransformFollowsBody() throws {
+            let (world, body, car) = try makeCar()
+            simulate(world, seconds: 1)
+            let wheel = car.wheelWorldTransform(at: 3).columns.3
+            let bodyPosition = world.position(of: body)
+            // Rear right wheel attaches at (0.9, 0, -1.4) and hangs down by its suspension.
+            #expect(abs(wheel.x - (bodyPosition.x + 0.9)) < 0.05)
+            #expect(abs(wheel.z - (bodyPosition.z - 1.4)) < 0.05)
+            #expect(wheel.y < bodyPosition.y)
+            let local = car.wheelLocalTransform(at: 3).columns.3
+            #expect(abs(local.y - (wheel.y - bodyPosition.y)) < 0.05)
+        }
+
+        @Test func maxPitchRollAngleLimitsTilt() throws {
+            func tilt(limit: Float?) throws -> Float {
+                let (world, body, car) = try makeCar()
+                if let limit {
+                    car.setMaxPitchRollAngle(limit)
+                }
+                simulate(world, seconds: 1)
+                world.addAngularImpulse(to: body, impulse: [0, 0, 4000])
+                var maxTilt: Float = 0
+                for _ in 0..<60 {
+                    world.update(deltaTime: 1.0 / 60.0)
+                    maxTilt = max(maxTilt, acos(min(1, world.rotation(of: body).act([0, 1, 0]).y)))
+                }
+                return maxTilt
+            }
+            let free = try tilt(limit: nil)
+            let limited = try tilt(limit: 0.1)
+            #expect(limited < 0.2, "limited \(limited)")
+            #expect(limited < free, "free \(free), limited \(limited)")
+        }
+
         @Test func wheelStateReportsContactDetails() throws {
             let (world, _, car) = try makeCar()
             simulate(world, seconds: 2)
@@ -410,8 +462,12 @@ extension JoltTests {
             tank.rightRatio = 1
             tank.brakeInput = 0
             #expect(tank.forwardInput == 1)
+            #expect(tank.leftRatio == 1 && tank.rightRatio == 1 && tank.brakeInput == 0)
             simulate(world, seconds: 2)
             #expect(world.position(of: body).z > 1)
+            #expect(tank.engineRPM > 0)
+            tank.brakeInput = 1
+            #expect(tank.brakeInput == 1)
 
             #expect(tank.trackDetails(.left).drivenWheel == 3)
             #expect(tank.trackDetails(.right).drivenWheel == 7)
