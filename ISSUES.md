@@ -982,12 +982,13 @@ Uncovered lines: Vehicles.swift 77, 116-128, 207-235; TrackedVehicle.swift 56-58
 ## 62: Listener and debug renderer default implementations have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:debug
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:04:11Z
+closed: 2026-11-17T00:04:11Z
 +++
 
 Default protocol methods and debug-renderer helpers are never run by tests:
