@@ -194,11 +194,14 @@ public class Vehicle: Constraint {
     public let body: BodyID
     // Weak: the world holds its constraints strongly.
     weak var world: PhysicsWorld?
+    // Keeps Jolt initialized until the vehicle's Jolt object is destroyed, even if the world is gone.
+    private let engine: JoltEngine
 
     required init(handle: OpaquePointer, world: PhysicsWorld, body: BodyID) {
         stepListener = JPH_VehicleConstraint_AsPhysicsStepListener(handle)!
         self.body = body
         self.world = world
+        engine = world.engine
         super.init(handle: handle)
         JPH_PhysicsSystem_AddStepListener(world.system, stepListener)
     }
@@ -335,6 +338,8 @@ public class Vehicle: Constraint {
     /// around it; Y points up.
     public func wheelWorldTransform(at index: Int) -> simd_float4x4 {
         precondition(index >= 0 && index < wheelCount, "Wheel index out of range")
+        // Reads the vehicle body, which the world frees.
+        precondition(world != nil, "The vehicle's PhysicsWorld was released")
         var right = JPH_Vec3([1, 0, 0])
         var up = JPH_Vec3([0, 1, 0])
         var result = JPH_RMat4()

@@ -29,5 +29,18 @@ extension JoltTests {
             }
             #expect(worlds.allSatisfy { $0.bodyCount == 51 })
         }
+
+        @Test func worldsCanBeCreatedAndDestroyedConcurrently() throws {
+            let engine = try JoltEngine()
+            // Keeping worlds alive grows joltc's global world map, so inserts rehash it.
+            DispatchQueue.concurrentPerform(iterations: 8) { _ in
+                for _ in 0..<4 {
+                    let worlds = (0..<32).map { _ in PhysicsWorld(engine: engine, maxBodies: 16, jobSystem: .joltThreadPool(threadCount: 0)) }
+                    for world in worlds {
+                        world.update(deltaTime: 1.0 / 60.0)
+                    }
+                }
+            }
+        }
     }
 }

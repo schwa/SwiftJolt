@@ -2499,12 +2499,13 @@ Unwrapped joltc API:
 ## 102: Test suite crashes intermittently with SIGSEGV
 
 +++
-status: new
+status: closed
 priority: high
 kind: bug
 labels: area:testing, effort:m
 created: 2026-11-16T23:04:53Z
-updated: 2026-11-17T18:31:48Z
+updated: 2026-11-17T18:41:49Z
+closed: 2026-11-17T18:41:49Z
 +++
 
 Running the full test suite segfaults about 1 run in 20.
@@ -2524,11 +2525,13 @@ Expected: suite passes every run.
 ## 103: Using a vehicle after its PhysicsWorld is released crashes with SIGSEGV
 
 +++
-status: new
+status: closed
 priority: medium
 kind: bug
 labels: area:vehicles
 created: 2026-11-17T00:01:00Z
+updated: 2026-11-17T18:41:49Z
+closed: 2026-11-17T18:41:49Z
 +++
 
 A Vehicle object can outlive the PhysicsWorld that created it. Using it afterwards crashes the process.
@@ -2547,12 +2550,13 @@ Not yet confirmed which step faults (the setter, or the vehicle's deinit after t
 ## 104: Creating PhysicsWorlds on two threads at once crashes in JPH_PhysicsSystem_Create
 
 +++
-status: open
+status: closed
 priority: high
 kind: bug
 labels: effort:m
 created: 2026-11-17T18:31:48Z
-updated: 2026-11-17T18:31:53Z
+updated: 2026-11-17T18:41:49Z
+closed: 2026-11-17T18:41:49Z
 +++
 
 Creating two PhysicsWorld instances concurrently can crash with a bad pointer dereference inside joltc.

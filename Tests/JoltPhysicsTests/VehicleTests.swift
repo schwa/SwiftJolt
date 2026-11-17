@@ -42,6 +42,12 @@ extension JoltTests {
             return car.0.position(of: car.body).z
         }
 
+        @Test func vehicleOutlivesWorld() throws {
+            let car = try makeCar().car
+            car.gravityOverride = [0, 0, -9.81]
+            _ = car.wheelState(at: 0)
+        }
+
         @Test func manualTransmissionHoldsGear() throws {
             let car = try makeCar(transmission: TransmissionSettings(mode: .manual))
             car.car.transmission.setGear(2)

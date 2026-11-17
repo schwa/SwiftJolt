@@ -14,6 +14,8 @@ public final class JoltEngine: Sendable {
     // joltc keeps a single global TempAllocator, which is not thread safe. Every call that can
     // use it (PhysicsSystem update, CharacterVirtual update) must hold this lock, even across
     // separate worlds.
+    // joltc also keeps a global, unlocked map of physics systems. Create and Destroy write it and
+    // step listeners read it during update, so Create and Destroy hold this lock too.
     private static let tempAllocatorLock = Mutex(())
 
     static func withTempAllocator<Result>(_ body: () -> Result) -> Result {
@@ -435,7 +437,7 @@ public final class PhysicsWorld {
             objectLayerPairFilter: objFilter,
             objectVsBroadPhaseLayerFilter: bpF
         )
-        self.system = JPH_PhysicsSystem_Create(&settings)
+        self.system = JoltEngine.withTempAllocator { JPH_PhysicsSystem_Create(&settings) }
 
         var g = JPH_Vec3(gravity)
         JPH_PhysicsSystem_SetGravity(system, &g)
@@ -492,7 +494,7 @@ public final class PhysicsWorld {
             JPH_CharacterVsCharacterCollision_Destroy(characterCollisions.all)
             JPH_CharacterVsCharacterCollision_Destroy(characterCollisions.empty)
         }
-        JPH_PhysicsSystem_Destroy(system)
+        JoltEngine.withTempAllocator { JPH_PhysicsSystem_Destroy(system) }
         releaseContactListener()
         releaseActivationListener()
         // Queued jobs can still hold job references after an update returns.
