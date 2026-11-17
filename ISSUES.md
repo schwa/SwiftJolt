@@ -934,12 +934,13 @@ Uncovered lines: Character.swift 40, 44-52, 69-73, 82-86, 109-112, 121-124, 139-
 ## 60: Constraint motor and friction accessors have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:constraints
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:02:56Z
+closed: 2026-11-17T00:02:56Z
 +++
 
 Constraints.swift has 57 uncovered lines (88.9%). No tests use:

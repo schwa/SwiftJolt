@@ -484,6 +484,65 @@ extension JoltTests {
             hinge = nil
         }
 
+        @Test func sliderMotorAndFrictionAccessors() throws {
+            let world = try makeWorld(gravity: .zero)
+            let body = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]))
+            let slider = world.addSliderConstraint(between: nil, and: body, axis: [1, 0, 0])
+            slider.maxFrictionForce = 12
+            #expect(slider.maxFrictionForce == 12)
+            slider.motorState = .velocity
+            #expect(slider.motorState == .velocity)
+            slider.targetVelocity = 2
+            #expect(slider.targetVelocity == 2)
+            slider.targetPosition = 0.5
+            #expect(slider.targetPosition == 0.5)
+            slider.motorState = .position
+            #expect(slider.motorState == .position)
+        }
+
+        @Test func hingeMotorAndFrictionAccessors() throws {
+            let world = try makeWorld(gravity: .zero)
+            let body = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]))
+            let hinge = world.addHingeConstraint(between: nil, and: body, point: .zero, axis: [0, 1, 0])
+            hinge.maxFrictionTorque = 7
+            #expect(hinge.maxFrictionTorque == 7)
+            hinge.targetAngularVelocity = 1.5
+            #expect(hinge.targetAngularVelocity == 1.5)
+            hinge.targetAngle = 0.25
+            #expect(hinge.targetAngle == 0.25)
+        }
+
+        @Test func sixDOFMotorTargets() throws {
+            let world = try makeWorld(gravity: .zero)
+            let body = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]))
+            let constraint = world.addSixDOFConstraint(between: nil, and: body, point: .zero, limits: [:])
+            constraint.targetVelocity = [1, 2, 3]
+            #expect(constraint.targetVelocity == [1, 2, 3])
+            constraint.targetAngularVelocity = [0, 1, 0]
+            #expect(constraint.targetAngularVelocity == [0, 1, 0])
+            constraint.targetPosition = [0.5, 0, 0]
+            #expect(constraint.targetPosition == [0.5, 0, 0])
+            let turn = simd_quatf(angle: 0.3, axis: [0, 1, 0])
+            constraint.targetOrientation = turn
+            #expect(abs(simd_dot(constraint.targetOrientation.vector, turn.vector)) > 0.9999)
+
+            // The body starts aligned, then a turn shows up in constraint space.
+            #expect(abs(constraint.rotationInConstraintSpace.angle) < 1e-4)
+            world.setRotation(of: body, to: turn)
+            #expect(abs(simd_dot(constraint.rotationInConstraintSpace.vector, turn.vector)) > 0.9999)
+        }
+
+        @Test func pointConstraintLocalPoint2CanMove() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.sphere(radius: 0.2), position: [0, 5, 0])
+            let point = world.addPointConstraint(between: nil, and: body, point: [0, 5, 0])
+            point.localPoint2 = [0, 1, 0]
+            #expect(simd_distance(point.localPoint2, [0, 1, 0]) < 1e-4)
+            simulate(world, seconds: 2)
+            // The body hangs 1 m below the pin.
+            #expect(simd_distance(world.position(of: body), [0, 4, 0]) < 0.05)
+        }
+
         @Test func fixedConstraintImpulseHoldsWeight() throws {
             let world = try makeWorld()
             let box = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]), position: [0, 5, 0], options: BodyOptions(mass: 10))
