@@ -1025,12 +1025,13 @@ Uncovered guard/early-return lines: JoltPhysics.swift 27, 357, 364, 652, 707, 74
 ## 64: Precondition failure and init-error paths have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:m
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:06:34Z
+closed: 2026-11-17T00:06:34Z
 +++
 
 About 51 preconditions in Sources/JoltPhysics never fail in tests, so their message autoclosures and preconditionFailure lines stay uncovered. This is most of the remaining uncovered functions (implicit closures) in CompoundShapes, Constraints, JoltPhysics, Material, Ragdoll, Skeleton, SkeletonMapper, SkeletonPose, SoftBodies, TrackedVehicle, and Vehicles.
@@ -1043,6 +1044,7 @@ These paths crash the process, so normal tests cannot reach them.
 
 - `2026-11-16T22:12:04Z`: Related: #97 (an assert handler could make some failure paths observable).
 - `2026-11-16T22:33:43Z`: Correction: the related issue is #98 (trace/assert handlers), not #97.
+- `2026-11-17T00:06:34Z`: Added PreconditionTests using Swift Testing exit tests: 21 tests, one or more per listed file (CompoundShapes, Constraints, JoltPhysics, Material, Ragdoll, Skeleton, SkeletonMapper, SkeletonPose, SoftBodies, TrackedVehicle, Vehicles, plus BodyOptions/collision layers and the job pool). Each checks stderr for the precondition message so it fails for the right reason. Not every one of the ~90 preconditions has its own test; the rest follow the same pattern. The JPH_Init failure path (throw JoltInitializationError) is still uncovered: it can't be triggered without a failing Jolt.
 
 ---
 
