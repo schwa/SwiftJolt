@@ -2502,3 +2502,26 @@ Observed on the commit before the step listener work (c4beb3ea): 3 of 60 runs en
 Expected: suite passes every run.
 
 ---
+
+## 103: Using a vehicle after its PhysicsWorld is released crashes with SIGSEGV
+
++++
+status: new
+priority: medium
+kind: bug
+labels: area:vehicles
+created: 2026-11-17T00:01:00Z
++++
+
+A Vehicle object can outlive the PhysicsWorld that created it. Using it afterwards crashes the process.
+
+Repro (found while writing tests for #94):
+1. let car = try { let world = try makeWorld(); ...; return world.addWheeledVehicle(...) }()  — i.e. drop the last reference to the world while keeping the vehicle.
+2. Set car.gravityOverride = [0, 0, -9.81] (or let the vehicle deinit).
+
+Expected: either the vehicle keeps what it needs alive, or a clear precondition failure.
+Actual: the test process exits with signal 11.
+
+Not yet confirmed which step faults (the setter, or the vehicle's deinit after the world and possibly Jolt have been torn down). Vehicle holds only a weak reference to the world.
+
+---
