@@ -41,6 +41,71 @@ extension JoltTests {
             #expect(result.3 == nil)
         }
 
+        @Test func lockedBodyTransformAccessors() throws {
+            let world = try makeWorld(gravity: .zero)
+            let turn = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+            let body = world.addBody(
+                .offsetCenterOfMass(.box(halfExtents: [1, 1, 1]), offset: [1, 0, 0]),
+                position: [1, 2, 3],
+                rotation: turn
+            )
+            let state = try #require(world.readBody(body) { body in
+                (body.rotation, body.worldTransform, body.centerOfMassPosition)
+            })
+            #expect(abs(simd_dot(state.0.vector, turn.vector)) > 0.9999)
+            #expect(simd_distance(SIMD3(state.1.columns.3.x, state.1.columns.3.y, state.1.columns.3.z), [1, 2, 3]) < 1e-4)
+            // The local +x offset turns to world -z.
+            #expect(simd_distance(state.2, [1, 2, 2]) < 1e-4)
+        }
+
+        @Test func lockedBodyVelocitiesAndImpulses() throws {
+            let world = try makeWorld(gravity: .zero)
+            let options = BodyOptions(linearDamping: 0, angularDamping: 0, mass: 1)
+            let body = world.addBody(.box(halfExtents: [0.5, 0.5, 0.5]), options: options)
+            world.writeBody(body) { body in
+                body.addImpulse([1, 0, 0], at: [0, 0.5, 0])
+                body.addAngularImpulse([0, 1, 0])
+            }
+            let velocities = try #require(world.readBody(body) { ($0.linearVelocity, $0.angularVelocity) })
+            #expect(simd_distance(velocities.0, [1, 0, 0]) < 1e-4)
+            // The off-center impulse spins around -z; the angular impulse spins around +y.
+            #expect(velocities.1.z < 0)
+            #expect(velocities.1.y > 0)
+        }
+
+        @Test func lockedBodyFlagsAndProperties() throws {
+            let world = try makeWorld()
+            let body = world.addBody(.sphere(radius: 1))
+            let floor = world.addBody(.box(halfExtents: [1, 1, 1]), position: [0, -10, 0], motionType: .static)
+            world.writeBody(body) { body in
+                body.restitution = 0.7
+                body.userData = 99
+                body.allowSleeping = false
+                body.applyGyroscopicForce = true
+                body.collideKinematicVsNonDynamic = true
+                body.useManifoldReduction = false
+                body.enhancedInternalEdgeRemoval = true
+            }
+            let state = try #require(world.readBody(body) { body in
+                (
+                    body.restitution, body.userData, body.allowSleeping, body.applyGyroscopicForce,
+                    body.collideKinematicVsNonDynamic, body.useManifoldReduction, body.enhancedInternalEdgeRemoval,
+                    body.canBeKinematicOrDynamic, body.isActive
+                )
+            })
+            #expect(state.0 == 0.7)
+            #expect(state.1 == 99)
+            #expect(!state.2)
+            #expect(state.3)
+            #expect(state.4)
+            #expect(!state.5)
+            #expect(state.6)
+            #expect(state.7)
+            #expect(state.8)
+            #expect(world.restitution(of: body) == 0.7)
+            #expect(world.readBody(floor) { $0.canBeKinematicOrDynamic } == false)
+        }
+
         @Test func readBodyReturnsNilForRemovedBody() throws {
             let world = try makeWorld()
             let body = world.addBody(.sphere(radius: 1))

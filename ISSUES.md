@@ -890,12 +890,13 @@ Wrap JPH_SkeletonMapper: initialize between two skeletons, lock translations, Ma
 ## 58: LockedBody accessors and impulse methods have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:bodies
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:01:52Z
+closed: 2026-11-17T00:01:52Z
 +++
 
 BodyLocking.swift is at 73.6% line coverage. No tests call:
