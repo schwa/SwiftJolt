@@ -33,6 +33,18 @@ public final class Motorcycle: WheeledVehicle {
         set { JPH_MotorcycleController_SetLeanSpringDamping(controller, newValue) }
     }
 
+    /// Integral term of the lean controller, which removes steady lean error.
+    public var leanSpringIntegrationCoefficient: Float {
+        get { JPH_MotorcycleController_GetLeanSpringIntegrationCoefficient(controller) }
+        set { JPH_MotorcycleController_SetLeanSpringIntegrationCoefficient(controller, newValue) }
+    }
+
+    /// How fast the integral term decays, per second.
+    public var leanSpringIntegrationCoefficientDecay: Float {
+        get { JPH_MotorcycleController_GetLeanSpringIntegrationCoefficientDecay(controller) }
+        set { JPH_MotorcycleController_SetLeanSpringIntegrationCoefficientDecay(controller, newValue) }
+    }
+
     /// 0...1. Higher values smooth the lean angle more.
     public var leanSmoothingFactor: Float {
         get { JPH_MotorcycleController_GetLeanSmoothingFactor(controller) }

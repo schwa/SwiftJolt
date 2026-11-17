@@ -11,6 +11,17 @@ public struct WheelSettings: Sendable {
     public var width: Float = 0.1
     public var suspensionLength: ClosedRange<Float> = 0.3...0.5
     public var suspensionSpring = SpringSettings(.frequency(1.5), damping: 0.5)
+    /// Extra compression at rest, in meters, so the spring already pushes when fully extended.
+    public var suspensionPreloadLength: Float = 0
+    /// Direction the suspension extends in, in body space.
+    public var suspensionDirection: SIMD3<Float> = [0, -1, 0]
+    /// Axis the wheel steers around, in body space.
+    public var steeringAxis: SIMD3<Float> = [0, 1, 0]
+    /// Wheel up and forward when not steering, in body space.
+    public var wheelUp: SIMD3<Float> = [0, 1, 0]
+    public var wheelForward: SIMD3<Float> = [0, 0, 1]
+    /// Where the suspension force is applied, in body space. nil applies it at the contact point.
+    public var suspensionForcePoint: SIMD3<Float>?
 
     public init(position: SIMD3<Float>) {
         self.position = position
@@ -25,6 +36,20 @@ public struct WheelSettings: Sendable {
         JPH_WheelSettings_SetSuspensionMaxLength(settings, suspensionLength.upperBound)
         var spring = suspensionSpring.jph
         JPH_WheelSettings_SetSuspensionSpring(settings, &spring)
+        JPH_WheelSettings_SetSuspensionPreloadLength(settings, suspensionPreloadLength)
+        var direction = JPH_Vec3(simd_normalize(suspensionDirection))
+        JPH_WheelSettings_SetSuspensionDirection(settings, &direction)
+        var steering = JPH_Vec3(simd_normalize(steeringAxis))
+        JPH_WheelSettings_SetSteeringAxis(settings, &steering)
+        var up = JPH_Vec3(simd_normalize(wheelUp))
+        JPH_WheelSettings_SetWheelUp(settings, &up)
+        var forward = JPH_Vec3(simd_normalize(wheelForward))
+        JPH_WheelSettings_SetWheelForward(settings, &forward)
+        JPH_WheelSettings_SetEnableSuspensionForcePoint(settings, suspensionForcePoint != nil)
+        if let suspensionForcePoint {
+            var point = JPH_Vec3(suspensionForcePoint)
+            JPH_WheelSettings_SetSuspensionForcePoint(settings, &point)
+        }
     }
 }
 
@@ -65,6 +90,30 @@ public struct WheelState: Sendable {
     public var contactBody: BodyID?
     public var contactPosition: SIMD3<Float>
     public var contactNormal: SIMD3<Float>
+    /// Which part of the contact body's shape the wheel touches.
+    public var contactSubShape: SubShapeID
+    /// Velocity of the ground at the contact point.
+    public var contactPointVelocity: SIMD3<Float>
+    /// Rolling direction and sideways direction at the contact.
+    public var contactLongitudinal: SIMD3<Float>
+    public var contactLateral: SIMD3<Float>
+    /// Impulses applied in the last step by the suspension and the tire's friction.
+    public var suspensionLambda: Float
+    public var longitudinalLambda: Float
+    public var lateralLambda: Float
+    /// True when the suspension bottomed out.
+    public var hasHitHardPoint: Bool
+}
+
+/// Runs `body` with a temporary Jolt curve. Jolt copies curves when they are set.
+func withLinearCurve(_ points: [(Float, Float)], _ body: (OpaquePointer) -> Void) {
+    let curve = JPH_LinearCurve_Create()!
+    defer { JPH_LinearCurve_Destroy(curve) }
+    for (x, y) in points {
+        JPH_LinearCurve_AddPoint(curve, x, y)
+    }
+    JPH_LinearCurve_Sort(curve)
+    body(curve)
 }
 
 // MARK: - Wheel collision
@@ -177,21 +226,109 @@ public class Vehicle: Constraint {
     public func wheelState(at index: Int) -> WheelState {
         precondition(index >= 0 && index < wheelCount, "Wheel index out of range")
         let wheel = JPH_VehicleConstraint_GetWheel(handle, UInt32(index))!
-        let contactID = JPH_Wheel_GetContactBodyID(wheel)
         var contactPosition = JPH_RVec3()
-        var contactNormal = JPH_Vec3()
         JPH_Wheel_GetContactPosition(wheel, &contactPosition)
-        JPH_Wheel_GetContactNormal(wheel, &contactNormal)
+        func vector(_ read: (OpaquePointer, UnsafeMutablePointer<JPH_Vec3>) -> Void) -> SIMD3<Float> {
+            var result = JPH_Vec3()
+            read(wheel, &result)
+            return result.simd
+        }
         return WheelState(
             angularVelocity: JPH_Wheel_GetAngularVelocity(wheel),
             rotationAngle: JPH_Wheel_GetRotationAngle(wheel),
             steerAngle: JPH_Wheel_GetSteerAngle(wheel),
             suspensionLength: JPH_Wheel_GetSuspensionLength(wheel),
-            // Jolt marks "no contact" with an all-ones body ID.
-            contactBody: contactID == .max ? nil : BodyID(rawValue: contactID),
+            contactBody: JPH_Wheel_HasContact(wheel) ? BodyID(rawValue: JPH_Wheel_GetContactBodyID(wheel)) : nil,
             contactPosition: contactPosition.simd,
-            contactNormal: contactNormal.simd
+            contactNormal: vector { JPH_Wheel_GetContactNormal($0, $1) },
+            contactSubShape: SubShapeID(rawValue: JPH_Wheel_GetContactSubShapeID(wheel)),
+            contactPointVelocity: vector { JPH_Wheel_GetContactPointVelocity($0, $1) },
+            contactLongitudinal: vector { JPH_Wheel_GetContactLongitudinal($0, $1) },
+            contactLateral: vector { JPH_Wheel_GetContactLateral($0, $1) },
+            suspensionLambda: JPH_Wheel_GetSuspensionLambda(wheel),
+            longitudinalLambda: JPH_Wheel_GetLongitudinalLambda(wheel),
+            lateralLambda: JPH_Wheel_GetLateralLambda(wheel),
+            hasHitHardPoint: JPH_Wheel_HasHitHardPoint(wheel)
         )
+    }
+
+    private func wheel(at index: Int) -> OpaquePointer {
+        precondition(index >= 0 && index < wheelCount, "Wheel index out of range")
+        return JPH_VehicleConstraint_GetWheel(handle, UInt32(index))!
+    }
+
+    /// Overrides a wheel's spin, e.g. after teleporting the vehicle. Radians per second.
+    public func setWheelAngularVelocity(_ velocity: Float, at index: Int) {
+        JPH_Wheel_SetAngularVelocity(wheel(at: index), velocity)
+    }
+
+    public func setWheelRotationAngle(_ angle: Float, at index: Int) {
+        JPH_Wheel_SetRotationAngle(wheel(at: index), angle)
+    }
+
+    /// The controller sets steering from driver input every step, so this only lasts until then.
+    public func setWheelSteerAngle(_ angle: Float, at index: Int) {
+        JPH_Wheel_SetSteerAngle(wheel(at: index), angle)
+    }
+
+    /// A wheel's transform relative to the vehicle body. Axle along local X, Y up.
+    public func wheelLocalTransform(at index: Int) -> simd_float4x4 {
+        precondition(index >= 0 && index < wheelCount, "Wheel index out of range")
+        var right = JPH_Vec3([1, 0, 0])
+        var up = JPH_Vec3([0, 1, 0])
+        var result = JPH_Mat4()
+        JPH_VehicleConstraint_GetWheelLocalTransform(handle, UInt32(index), &right, &up, &result)
+        return result.simd
+    }
+
+    /// The wheel's current forward, up and right directions in body space, including steering.
+    public func wheelLocalBasis(at index: Int) -> (forward: SIMD3<Float>, up: SIMD3<Float>, right: SIMD3<Float>) {
+        var forward = JPH_Vec3()
+        var up = JPH_Vec3()
+        var right = JPH_Vec3()
+        JPH_VehicleConstraint_GetWheelLocalBasis(handle, wheel(at: index), &forward, &up, &right)
+        return (forward.simd, up.simd, right.simd)
+    }
+
+    /// Vehicle forward and up in body space, as given at creation.
+    public var localForward: SIMD3<Float> {
+        var result = JPH_Vec3()
+        JPH_VehicleConstraint_GetLocalForward(handle, &result)
+        return result.simd
+    }
+
+    public var localUp: SIMD3<Float> {
+        var result = JPH_Vec3()
+        JPH_VehicleConstraint_GetLocalUp(handle, &result)
+        return result.simd
+    }
+
+    /// The vehicle's up in world space after the last step (opposite gravity, or `localUp` rotated).
+    public var worldUp: SIMD3<Float> {
+        var result = JPH_Vec3()
+        JPH_VehicleConstraint_GetWorldUp(handle, &result)
+        return result.simd
+    }
+
+    /// Gravity used for this vehicle instead of the world's, e.g. to drive on walls. nil uses the world's.
+    public var gravityOverride: SIMD3<Float>? {
+        get {
+            guard JPH_VehicleConstraint_IsGravityOverridden(handle) else {
+                return nil
+            }
+            var result = JPH_Vec3()
+            JPH_VehicleConstraint_GetGravityOverride(handle, &result)
+            return result.simd
+        }
+        set {
+            if let newValue {
+                var value = JPH_Vec3(newValue)
+                JPH_VehicleConstraint_OverrideGravity(handle, &value)
+            } else {
+                JPH_VehicleConstraint_ResetGravityOverride(handle)
+            }
+            wake()
+        }
     }
 
     /// World transform of a wheel, for drawing. The wheel's axle is its local X axis and it rolls
@@ -287,6 +424,13 @@ public struct WheeledVehicleWheel: Sendable {
     /// Newton-meters.
     public var maxBrakeTorque: Float = 1500
     public var maxHandBrakeTorque: Float = 4000
+    /// kg m².
+    public var inertia: Float = 0.9
+    public var angularDamping: Float = 0.2
+    /// Friction against longitudinal slip ratio. Empty keeps Jolt's curve.
+    public var longitudinalFriction: [(slip: Float, friction: Float)] = []
+    /// Friction against lateral slip angle in degrees. Empty keeps Jolt's curve.
+    public var lateralFriction: [(slipAngle: Float, friction: Float)] = []
 
     public init(_ wheel: WheelSettings, maxSteerAngle: Float = 0) {
         self.wheel = wheel
@@ -299,6 +443,14 @@ public struct WheeledVehicleWheel: Sendable {
         JPH_WheelSettingsWV_SetMaxSteerAngle(settings, maxSteerAngle)
         JPH_WheelSettingsWV_SetMaxBrakeTorque(settings, maxBrakeTorque)
         JPH_WheelSettingsWV_SetMaxHandBrakeTorque(settings, maxHandBrakeTorque)
+        JPH_WheelSettingsWV_SetInertia(settings, inertia)
+        JPH_WheelSettingsWV_SetAngularDamping(settings, angularDamping)
+        if !longitudinalFriction.isEmpty {
+            withLinearCurve(longitudinalFriction.map { ($0.slip, $0.friction) }) { JPH_WheelSettingsWV_SetLongitudinalFriction(settings, $0) }
+        }
+        if !lateralFriction.isEmpty {
+            withLinearCurve(lateralFriction.map { ($0.slipAngle, $0.friction) }) { JPH_WheelSettingsWV_SetLateralFriction(settings, $0) }
+        }
         return settings
     }
 }
@@ -355,6 +507,13 @@ public class WheeledVehicle: Vehicle {
     /// 0 is neutral, negative is reverse.
     public var currentGear: Int {
         transmission.currentGear
+    }
+
+    /// Spins a wheel by `torque` (Newton-meters) over `deltaTime`, outside the drivetrain.
+    public func applyWheelTorque(_ torque: Float, deltaTime: Float, at index: Int) {
+        precondition(index >= 0 && index < wheelCount, "Wheel index out of range")
+        JPH_WheelWV_ApplyTorque(JPH_VehicleConstraint_GetWheel(handle, UInt32(index)), torque, deltaTime)
+        wake()
     }
 
     /// Average rotation speed of the driven wheels as seen from the clutch, in RPM.

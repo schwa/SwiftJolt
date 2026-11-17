@@ -11,7 +11,8 @@ extension JoltTests {
             engine: EngineSettings = EngineSettings(),
             transmission: TransmissionSettings = TransmissionSettings(),
             antiRollBars: [AntiRollBar] = [],
-            collisionTester: WheelCollisionTester = .default
+            collisionTester: WheelCollisionTester = .default,
+            adjustWheel: (inout WheeledVehicleWheel) -> Void = { _ in }
         ) throws -> (PhysicsWorld, body: BodyID, car: WheeledVehicle) {
             let world = try makeWorld()
             world.addBody(.box(halfExtents: [100, 0.5, 100]), position: [0, -0.5, 0], motionType: .static, friction: 1)
@@ -22,7 +23,11 @@ extension JoltTests {
                 WheeledVehicleWheel(WheelSettings(position: [0.9, 0, 1.4]), maxSteerAngle: .pi / 6),
                 WheeledVehicleWheel(WheelSettings(position: [-0.9, 0, -1.4])),
                 WheeledVehicleWheel(WheelSettings(position: [0.9, 0, -1.4]))
-            ]
+            ].map { wheel in
+                var wheel = wheel
+                adjustWheel(&wheel)
+                return wheel
+            }
             let car = world.addWheeledVehicle(
                 body: body, wheels: wheels, differentials: differentials, engine: engine, transmission: transmission,
                 antiRollBars: antiRollBars, collisionTester: collisionTester
@@ -139,6 +144,82 @@ extension JoltTests {
             let soft = try roll(antiRollBars: [])
             let stiff = try roll(antiRollBars: [AntiRollBar(leftWheel: 0, rightWheel: 1, stiffness: 5_000), AntiRollBar(leftWheel: 2, rightWheel: 3, stiffness: 5_000)])
             #expect(stiff < soft * 0.8, "soft \(soft), stiff \(stiff)")
+        }
+
+        @Test func wheelStateReportsContactDetails() throws {
+            let (world, _, car) = try makeCar()
+            simulate(world, seconds: 2)
+            let wheel = car.wheelState(at: 0)
+            #expect(wheel.contactBody != nil)
+            #expect(wheel.suspensionLambda > 0)
+            #expect(abs(abs(wheel.contactLongitudinal.z) - 1) < 0.01)
+            #expect(abs(abs(wheel.contactLateral.x) - 1) < 0.01)
+            #expect(simd_length(wheel.contactPointVelocity) < 0.01)
+            #expect(!wheel.hasHitHardPoint)
+        }
+
+        @Test func vehicleFramesAndWheelTransforms() throws {
+            let (world, _, car) = try makeCar()
+            simulate(world, seconds: 1)
+            #expect(car.localForward == [0, 0, 1])
+            #expect(car.localUp == [0, 1, 0])
+            #expect(simd_distance(car.worldUp, [0, 1, 0]) < 0.01)
+            let local = car.wheelLocalTransform(at: 0).columns.3
+            #expect(abs(local.x + 0.9) < 1e-3 && abs(local.z - 1.4) < 1e-3)
+            let basis = car.wheelLocalBasis(at: 0)
+            #expect(simd_distance(basis.forward, [0, 0, 1]) < 1e-3)
+            #expect(simd_distance(basis.up, [0, 1, 0]) < 1e-3)
+        }
+
+        @Test func gravityOverrideRoundTrips() throws {
+            let (world, _, car) = try makeCar()
+            defer { withExtendedLifetime(world) {} }
+            #expect(car.gravityOverride == nil)
+            car.gravityOverride = [0, 0, -9.81]
+            #expect(car.gravityOverride == [0, 0, -9.81])
+            car.gravityOverride = nil
+            #expect(car.gravityOverride == nil)
+        }
+
+        @Test func wheelSpinCanBeSetAndDriven() throws {
+            let (world, _, car) = try makeCar()
+            car.setWheelAngularVelocity(3, at: 1)
+            car.setWheelRotationAngle(0.5, at: 1)
+            car.setWheelSteerAngle(0.2, at: 0)
+            #expect(car.wheelState(at: 1).angularVelocity == 3)
+            #expect(car.wheelState(at: 1).rotationAngle == 0.5)
+            #expect(car.wheelState(at: 0).steerAngle == 0.2)
+            car.setWheelAngularVelocity(0, at: 2)
+            car.applyWheelTorque(100, deltaTime: 1.0 / 60.0, at: 2)
+            #expect(car.wheelState(at: 2).angularVelocity > 0)
+            _ = world
+        }
+
+        @Test func noLateralFrictionStopsTurning() throws {
+            // Rear-wheel drive, so steering relies only on the front tires' lateral grip.
+            func sideways(_ adjust: @escaping (inout WheeledVehicleWheel) -> Void) throws -> Float {
+                let (world, body, car) = try makeCar(differentials: [DifferentialSettings(leftWheel: 2, rightWheel: 3)], adjustWheel: adjust)
+                simulate(world, seconds: 1)
+                car.setDriverInput(forward: 1, right: 1)
+                simulate(world, seconds: 3)
+                return abs(world.position(of: body).x)
+            }
+            let normal = try sideways { _ in }
+            let slippery = try sideways { $0.lateralFriction = [(0, 0), (90, 0)] }
+            #expect(slippery < normal * 0.5, "normal \(normal), slippery \(slippery)")
+        }
+
+        @Test func wheelGeometrySettingsApply() throws {
+            let (world, body, car) = try makeCar { wheel in
+                wheel.wheel.suspensionPreloadLength = 0.1
+                wheel.wheel.suspensionForcePoint = wheel.wheel.position
+                wheel.inertia = 2
+                wheel.angularDamping = 0.5
+                wheel.longitudinalFriction = [(0, 0), (0.06, 1.2), (0.2, 1)]
+            }
+            simulate(world, seconds: 2)
+            #expect((0..<4).allSatisfy { car.wheelState(at: $0).contactBody != nil })
+            #expect(world.position(of: body).y > 0.6)
         }
 
         @Test func carDrivesForwardAndBrakes() throws {
@@ -319,6 +400,33 @@ extension JoltTests {
             simulate(world, seconds: 1)
             // Without the vehicle the box just sits on the floor.
             #expect(abs(world.position(of: body).z) < 0.1)
+        }
+
+        @Test func tankInputPropertiesAndTrackDetails() throws {
+            let (world, body, tank) = try makeTank()
+            simulate(world, seconds: 1)
+            tank.forwardInput = 1
+            tank.leftRatio = 1
+            tank.rightRatio = 1
+            tank.brakeInput = 0
+            #expect(tank.forwardInput == 1)
+            simulate(world, seconds: 2)
+            #expect(world.position(of: body).z > 1)
+
+            #expect(tank.trackDetails(.left).drivenWheel == 3)
+            #expect(tank.trackDetails(.right).drivenWheel == 7)
+            #expect(tank.trackDetails(.left).inertia > 0)
+            tank.setTrackAngularVelocity(5, side: .left)
+            #expect(tank.trackAngularVelocity(.left) == 5)
+        }
+
+        @Test func motorcycleLeanIntegrationRoundTrips() throws {
+            let (world, _, bike) = try makeMotorcycle()
+            defer { withExtendedLifetime(world) {} }
+            bike.leanSpringIntegrationCoefficient = 0.5
+            bike.leanSpringIntegrationCoefficientDecay = 2
+            #expect(bike.leanSpringIntegrationCoefficient == 0.5)
+            #expect(bike.leanSpringIntegrationCoefficientDecay == 2)
         }
 
         @Test func tankUsesTrackedTransmissionDefaults() throws {

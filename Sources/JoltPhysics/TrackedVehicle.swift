@@ -44,6 +44,17 @@ public enum TrackSide: Sendable {
     }
 }
 
+public struct TrackDetails: Sendable, Equatable {
+    public var drivenWheel: Int
+    /// kg m².
+    public var inertia: Float
+    public var angularDamping: Float
+    /// Newton-meters.
+    public var maxBrakeTorque: Float
+    /// Gearbox-to-track rotation ratio.
+    public var differentialRatio: Float
+}
+
 /// A tank-like vehicle. It steers by running its two tracks at different speeds.
 public final class TrackedVehicle: Vehicle {
     /// `forward` in -1...1. `leftRatio` and `rightRatio` (-1...1) scale each track's speed: equal
@@ -54,19 +65,35 @@ public final class TrackedVehicle: Vehicle {
     }
 
     public var forwardInput: Float {
-        JPH_TrackedVehicleController_GetForwardInput(controller)
+        get { JPH_TrackedVehicleController_GetForwardInput(controller) }
+        set {
+            JPH_TrackedVehicleController_SetForwardInput(controller, newValue)
+            wake()
+        }
     }
 
     public var leftRatio: Float {
-        JPH_TrackedVehicleController_GetLeftRatio(controller)
+        get { JPH_TrackedVehicleController_GetLeftRatio(controller) }
+        set {
+            JPH_TrackedVehicleController_SetLeftRatio(controller, newValue)
+            wake()
+        }
     }
 
     public var rightRatio: Float {
-        JPH_TrackedVehicleController_GetRightRatio(controller)
+        get { JPH_TrackedVehicleController_GetRightRatio(controller) }
+        set {
+            JPH_TrackedVehicleController_SetRightRatio(controller, newValue)
+            wake()
+        }
     }
 
     public var brakeInput: Float {
-        JPH_TrackedVehicleController_GetBrakeInput(controller)
+        get { JPH_TrackedVehicleController_GetBrakeInput(controller) }
+        set {
+            JPH_TrackedVehicleController_SetBrakeInput(controller, newValue)
+            wake()
+        }
     }
 
     public var engineRPM: Float {
@@ -85,6 +112,23 @@ public final class TrackedVehicle: Vehicle {
     /// Radians per second of the track's driven wheel.
     public func trackAngularVelocity(_ side: TrackSide) -> Float {
         JPH_VehicleTrack_GetAngularVelocity(JPH_TrackedVehicleController_GetTrack(controller, side.jph))
+    }
+
+    public func setTrackAngularVelocity(_ velocity: Float, side: TrackSide) {
+        JPH_VehicleTrack_SetAngularVelocity(JPH_TrackedVehicleController_GetTrack(controller, side.jph), velocity)
+        wake()
+    }
+
+    /// Settings Jolt uses for a track.
+    public func trackDetails(_ side: TrackSide) -> TrackDetails {
+        let track = JPH_TrackedVehicleController_GetTrack(controller, side.jph)
+        return TrackDetails(
+            drivenWheel: Int(JPH_VehicleTrack_GetDrivenWheel(track)),
+            inertia: JPH_VehicleTrack_GetInertia(track),
+            angularDamping: JPH_VehicleTrack_GetAngularDamping(track),
+            maxBrakeTorque: JPH_VehicleTrack_GetMaxBrakeTorque(track),
+            differentialRatio: JPH_VehicleTrack_GetDifferentialRatio(track)
+        )
     }
 }
 

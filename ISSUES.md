@@ -2163,12 +2163,13 @@ Unwrapped joltc API:
 ## 94: Wheel and vehicle controller details are not exposed
 
 +++
-status: open
+status: closed
 priority: low
 kind: feature
 labels: area:vehicles, effort:l
 created: 2026-11-16T21:37:13Z
-updated: 2026-11-16T22:12:04Z
+updated: 2026-11-17T00:01:13Z
+closed: 2026-11-17T00:01:13Z
 +++
 
 Many per-wheel settings (suspension, friction curves, steering, brake torques) and runtime wheel state, plus parts of the controller and vehicle constraint API, are not wrapped.
@@ -2265,6 +2266,8 @@ Unwrapped joltc API:
 - `JPH_WheelTV_Create`
 - `JPH_WheelWV_ApplyTorque`
 - `JPH_WheelWV_Create`
+
+- `2026-11-17T00:01:13Z`: Added: WheelSettings suspension preload/direction, steering axis, wheel up/forward, suspension force point; WheeledVehicleWheel inertia, angular damping, longitudinal/lateral friction curves; WheelState contact sub-shape, contact point velocity, longitudinal/lateral directions, suspension/longitudinal/lateral lambdas, hit-hard-point; Vehicle setWheelAngularVelocity/RotationAngle/SteerAngle, wheelLocalTransform, wheelLocalBasis, localForward/localUp/worldUp, gravityOverride; WheeledVehicle.applyWheelTorque; TrackedVehicle input setters, setTrackAngularVelocity, trackDetails; Motorcycle lean spring integration coefficient/decay. Not wrapped: *Settings getters and Wheel/WheelSettings Create/Destroy (internal), settings-level motorcycle lean values (runtime controller properties cover them), SetDifferentials/SetTransmission on settings (already applied through addWheeledVehicle/addTrackedVehicle), GetWheelSpeedAtClutch (already wrapped), and SetTireMaxImpulseCallback (a per-wheel physics callback on worker threads; needs its own design). Found #103 while testing.
 
 ---
 
