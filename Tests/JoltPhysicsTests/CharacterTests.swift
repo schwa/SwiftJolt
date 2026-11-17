@@ -103,6 +103,52 @@ extension JoltTests {
             #expect(abs(character.maxSlopeAngle - .pi / 4) < 1e-4)
         }
 
+        @Test func characterBaseSettingsAndGroundDetails() throws {
+            let world = try makeWorld()
+            // A kinematic platform moving along x.
+            let platform = world.addBody(.box(halfExtents: [50, 0.5, 50]), position: [0, -0.5, 0], motionType: .kinematic)
+            world.setLinearVelocity(of: platform, to: [1, 0, 0])
+            let character = world.addCharacter(shape: capsule, position: [0, 1, 0])
+            character.maxSlopeAngle = .pi / 6
+            #expect(abs(character.maxSlopeAngle - .pi / 6) < 1e-4)
+            character.up = [0, 1, 0]
+            #expect(character.up == [0, 1, 0])
+            simulate(world, seconds: 1)
+            #expect(abs(character.groundPosition.y) < 0.05)
+            #expect(simd_distance(character.groundVelocity, [1, 0, 0]) < 0.01)
+        }
+
+        @Test func characterSettersAndImpulse() throws {
+            let world = try makeWorld(gravity: .zero)
+            let character = world.addCharacter(shape: capsule, position: .zero, mass: 80)
+            character.position = [1, 2, 3]
+            let turn = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+            character.rotation = turn
+            #expect(simd_distance(character.position, [1, 2, 3]) < 1e-4)
+            #expect(abs(simd_dot(character.rotation.vector, turn.vector)) > 0.9999)
+            character.addImpulse([80, 0, 0])
+            #expect(simd_distance(character.linearVelocity, [1, 0, 0]) < 0.01)
+        }
+
+        @Test func virtualCharacterProperties() throws {
+            let (world, _) = try makeWorldWithFloor()
+            let character = world.addVirtualCharacter(shape: capsule, position: [0, 3, 0])
+            character.position = [1, 4, 0]
+            #expect(simd_distance(character.position, [1, 4, 0]) < 1e-4)
+            let turn = simd_quatf(angle: .pi / 2, axis: [0, 1, 0])
+            character.rotation = turn
+            #expect(abs(simd_dot(character.rotation.vector, turn.vector)) > 0.9999)
+            character.mass = 90
+            #expect(character.mass == 90)
+            character.maxStrength = 250
+            #expect(character.maxStrength == 250)
+
+            // Plain update, without stick-to-floor or stairs, still moves the character.
+            character.linearVelocity = [0, -5, 0]
+            character.update(deltaTime: 0.1, stickToFloor: false, walkStairs: false)
+            #expect(abs(character.position.y - 3.5) < 0.01)
+        }
+
         @Test func characterBodyIsRemovedOnRelease() throws {
             let (world, _) = try makeWorldWithFloor()
             var character: Character? = world.addCharacter(shape: capsule, position: [0, 0.9, 0])

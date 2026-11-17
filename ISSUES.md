@@ -912,12 +912,13 @@ Uncovered lines: 19-35, 56-60, 68-72, 86, 106-107, 124-125, 128-131.
 ## 59: Character and VirtualCharacter properties have no test coverage
 
 +++
-status: open
+status: closed
 priority: low
 kind: task
 labels: area:testing, coverage, effort:s, area:characters
 created: 2026-11-16T21:35:03Z
-updated: 2026-11-16T22:12:01Z
+updated: 2026-11-17T00:02:25Z
+closed: 2026-11-17T00:02:25Z
 +++
 
 Character.swift is at 72.9% and VirtualCharacter.swift at 67.1% line coverage. No tests use:
