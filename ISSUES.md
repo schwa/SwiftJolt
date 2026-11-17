@@ -2504,6 +2504,7 @@ priority: high
 kind: bug
 labels: area:testing, effort:m
 created: 2026-11-16T23:04:53Z
+updated: 2026-11-17T18:31:48Z
 +++
 
 Running the full test suite segfaults about 1 run in 20.
@@ -2515,6 +2516,8 @@ Repro:
 Observed on the commit before the step listener work (c4beb3ea): 3 of 60 runs ended with `Segmentation fault: 11`. Also seen once via `xcb test`. The crash happened early, while many suites were running in parallel (constraint, character, vehicle, shape suites had just started). No crash report was written, and running under lldb did not reproduce it in 3 runs.
 
 Expected: suite passes every run.
+
+- `2026-11-17T18:31:48Z`: Possibly the same root cause as #104 (unsynchronized JPH_PhysicsSystem_Create when tests create worlds in parallel).
 
 ---
 
@@ -2538,5 +2541,38 @@ Expected: either the vehicle keeps what it needs alive, or a clear precondition 
 Actual: the test process exits with signal 11.
 
 Not yet confirmed which step faults (the setter, or the vehicle's deinit after the world and possibly Jolt have been torn down). Vehicle holds only a weak reference to the world.
+
+---
+
+## 104: Creating PhysicsWorlds on two threads at once crashes in JPH_PhysicsSystem_Create
+
++++
+status: open
+priority: high
+kind: bug
+labels: effort:m
+created: 2026-11-17T18:31:48Z
+updated: 2026-11-17T18:31:53Z
++++
+
+Creating two PhysicsWorld instances concurrently can crash with a bad pointer dereference inside joltc.
+
+Backtrace (SWIFT_BACKTRACE, SwiftJolt 0.0.3, seen in SceneSprockets' physics tests, about 1 in 15 runs):
+
+    Bad pointer dereference at 0x9, Thread 3:
+    0 JPH::HashTable<JPH::PhysicsSystem, pair<JPH::PhysicsSystem, JPH_PhysicsSystem>, ...>::InsertKey<false>
+    1 JPH_PhysicsSystem_Create + 600
+    2 PhysicsWorld.init(engine:gravity:...) (JoltPhysics.swift:438)
+
+Likely cause (not verified, joltc is a binary): joltc keeps a process-wide map from JPH::PhysicsSystem to JPH_PhysicsSystem and inserts into it in JPH_PhysicsSystem_Create without a lock.
+
+Repro:
+1. Run a test suite where several parallel tests each create a PhysicsWorld (Swift Testing runs in parallel by default).
+2. Repeat runs; some end with SIGSEGV.
+
+Expected: PhysicsWorld can be created from any thread at the same time as other worlds.
+Actual: intermittent crash in JPH_PhysicsSystem_Create.
+
+Affects any app creating physics worlds on more than one thread, not only tests. Possibly the cause of #102. Reported from SceneSprockets #442.
 
 ---
